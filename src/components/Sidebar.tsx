@@ -1,11 +1,33 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useVault } from "@/context/VaultContext";
-import { FolderPlus, Trash2, LogOut } from "lucide-react";
+import { FolderPlus, Trash2, LogOut, Sun, Moon } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 export default function Sidebar() {
   const { folders, currentCategory, setCurrentCategory, addFolder, deleteFolder } = useVault();
+  const [theme, setTheme] = useState("dark");
+
+  useEffect(() => {
+    const saved = localStorage.getItem("theme");
+    if (saved === "light") {
+      setTheme("light");
+      document.documentElement.classList.add("light");
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    if (theme === "dark") {
+      setTheme("light");
+      document.documentElement.classList.add("light");
+      localStorage.setItem("theme", "light");
+    } else {
+      setTheme("dark");
+      document.documentElement.classList.remove("light");
+      localStorage.setItem("theme", "dark");
+    }
+  };
 
   const handleAddFolder = async () => {
     const name = window.prompt("Enter new folder name:");
@@ -89,7 +111,14 @@ export default function Sidebar() {
         </div>
       </div>
       
-      <div className="pt-4 border-t border-slate-700/50">
+      <div className="pt-4 border-t border-slate-700/50 flex flex-col gap-2">
+        <button 
+          onClick={toggleTheme}
+          className="w-full flex items-center justify-center gap-2 py-2 text-sm text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+        >
+          {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+          {theme === "dark" ? "Light Mode" : "Dark Mode"}
+        </button>
         <button 
           onClick={() => supabase.auth.signOut()}
           className="w-full flex items-center justify-center gap-2 py-2 text-sm text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"

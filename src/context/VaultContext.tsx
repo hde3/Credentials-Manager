@@ -198,25 +198,25 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     await refreshData();
   };
 
+  const contextValue = React.useMemo(() => ({
+    user,
+    authLoading,
+    vaultData,
+    folders,
+    currentCategory,
+    setCurrentCategory,
+    addFolder,
+    deleteFolder,
+    renameFolder,
+    addCredential,
+    editCredential,
+    deleteCredential,
+    isLoaded,
+    refreshData,
+  }), [user, authLoading, vaultData, folders, currentCategory, isLoaded, refreshData]);
+
   return (
-    <VaultContext.Provider
-      value={{
-        user,
-        authLoading,
-        vaultData,
-        folders,
-        currentCategory,
-        setCurrentCategory,
-        addFolder,
-        deleteFolder,
-        renameFolder,
-        addCredential,
-        editCredential,
-        deleteCredential,
-        isLoaded,
-        refreshData,
-      }}
-    >
+    <VaultContext.Provider value={contextValue}>
       {children}
     </VaultContext.Provider>
   );
