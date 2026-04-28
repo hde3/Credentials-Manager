@@ -5,6 +5,8 @@ import { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { encryptPassword } from "@/lib/crypto";
 
+const MASTER_USER_ID = "00000000-0000-0000-0000-000000000000";
+
 export type Folder = {
   id: string;
   name: string;
@@ -82,7 +84,6 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       const { data: foldersData, error: foldersError } = await supabase
         .from("folders")
         .select("*")
-        .eq("user_id", user.id)
         .order("name");
         
       if (foldersError) throw foldersError;
@@ -90,8 +91,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       // Fetch credentials
       const { data: credsData, error: credsError } = await supabase
         .from("credentials")
-        .select("*")
-        .eq("user_id", user.id);
+        .select("*");
         
       if (credsError) throw credsError;
 
@@ -127,7 +127,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     const { error } = await supabase
       .from("folders")
-      .insert([{ name: folderName, user_id: user.id }]);
+      .insert([{ name: folderName, user_id: MASTER_USER_ID }]);
     if (error) {
       console.error(error);
       throw error;
@@ -169,7 +169,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     const { error } = await supabase
       .from("credentials")
       .insert([
-        { folder_id: folderId, login_id: loginId, password: encryptedPassword, user_id: user.id }
+        { folder_id: folderId, login_id: loginId, password: encryptedPassword, user_id: MASTER_USER_ID }
       ]);
     if (error) {
       console.error(error);
