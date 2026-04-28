@@ -5,8 +5,6 @@ import { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { encryptPassword } from "@/lib/crypto";
 
-const MASTER_USER_ID = "00000000-0000-0000-0000-000000000000";
-
 export type Folder = {
   id: string;
   name: string;
@@ -127,7 +125,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     const { error } = await supabase
       .from("folders")
-      .insert([{ name: folderName, user_id: MASTER_USER_ID }]);
+      .insert([{ name: folderName, user_id: user.id }]);
     if (error) {
       console.error(error);
       throw error;
@@ -169,7 +167,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     const { error } = await supabase
       .from("credentials")
       .insert([
-        { folder_id: folderId, login_id: loginId, password: encryptedPassword, user_id: MASTER_USER_ID }
+        { folder_id: folderId, login_id: loginId, password: encryptedPassword, user_id: user.id }
       ]);
     if (error) {
       console.error(error);
