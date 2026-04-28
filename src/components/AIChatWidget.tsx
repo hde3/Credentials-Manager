@@ -67,7 +67,7 @@ export default function AIChatWidget() {
       }
 
       const actions = Array.isArray(parsed) ? parsed : [parsed];
-      const replyMessages = [];
+      const replyMessages: string[] = [];
 
       for (const actionData of actions) {
         if (actionData.action === "ADD_CREDENTIAL") {
