@@ -3,14 +3,21 @@
 import nodemailer from "nodemailer";
 
 export async function sendPasswordEmail() {
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPass = process.env.SMTP_PASS;
+
+  if (!smtpUser || !smtpPass) {
+    throw new Error("SMTP credentials are not configured in environment variables.");
+  }
+
   try {
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
       port: 465,
       secure: true,
       auth: {
-        user: "manag00400@gmail.com",
-        pass: "hmsefpzfpsosdifi",
+        user: smtpUser,
+        pass: smtpPass,
       },
     });
 
@@ -38,7 +45,7 @@ export async function sendPasswordEmail() {
     `;
 
     const info = await transporter.sendMail({
-      from: '"Credentials Manager" <manag00400@gmail.com>',
+      from: `"Credentials Manager" <${smtpUser}>`,
       to: "agarg1473@gmail.com, happypandey2387@gmail.com",
       subject: "Secure Access: Your Credentials Manager Password",
       html: htmlContent,
