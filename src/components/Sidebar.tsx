@@ -62,12 +62,9 @@ export default function Sidebar() {
   };
 
   return (
-    <div className="bg-white dark:bg-[#171717] border border-gray-200 dark:border-neutral-800 shadow-md backdrop-blur-md h-full rounded-2xl p-5 flex flex-col gap-6 overflow-hidden transition-colors">
-      <div className="flex items-start justify-between border-b border-gray-200 dark:border-neutral-800 pb-5">
+    <div className="bg-white dark:bg-[#171717] border border-gray-200 dark:border-neutral-800 shadow-md backdrop-blur-md h-screen max-h-full rounded-2xl p-5 flex flex-col gap-6 overflow-hidden transition-colors">
+      <div className="flex items-center justify-between border-b border-gray-200 dark:border-neutral-800 pb-4">
         <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-1">
-            Beautiful Organizer
-          </p>
           <h2 className="text-xl font-bold leading-none text-gray-900 dark:text-gray-100">Credentials</h2>
         </div>
         <button 
@@ -120,7 +117,7 @@ export default function Sidebar() {
         </div>
       </div>
       
-      <div className="pt-4 border-t border-gray-200 dark:border-neutral-800 flex flex-col gap-2">
+      <div className="pt-3 border-t border-gray-200 dark:border-neutral-800 flex flex-col gap-2">
         <button 
           onClick={() => supabase.auth.signOut()}
           className="w-full flex items-center justify-center gap-2 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg transition-colors"
