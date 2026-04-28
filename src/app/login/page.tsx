@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Lock, Mail, KeyRound, ArrowLeft } from "lucide-react";
 import { sendPasswordEmail } from "@/app/actions/email";
 
-const ALLOWED_EMAILS = ['agarg1473@gmail.com', 'happypandey2387@gmail.com'];
+const ALLOWED_EMAILS = ['manag00400@gmail.com', 'agarg1473@gmail.com', 'happypandey2387@gmail.com'];
 
 const Spinner = () => (
   <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -32,7 +32,7 @@ export default function LoginPage() {
     setError("");
     setMessage("");
 
-    if (email !== "Credentials32@proton.me" || password !== "#Credentials98329") {
+    if (email !== "manag00400@gmail.com" || password !== "#Credentials98329") {
       setError("Unauthorized. Invalid credentials.");
       setLoading(false);
       return;
