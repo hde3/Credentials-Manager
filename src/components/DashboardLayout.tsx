@@ -47,13 +47,13 @@ export default function DashboardLayout() {
         <div className="flex items-center justify-between pb-2">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 -ml-2 rounded-lg hover:bg-white/5 text-slate-400 hover:text-white transition-colors hidden md:block"
+            className="p-2 -ml-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors hidden md:block"
           >
             <Menu size={24} />
           </button>
           
           <div className="flex md:hidden items-center gap-2">
-            <h1 className="text-xl font-bold">Vault</h1>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">Vault</h1>
           </div>
 
           {currentCategory && (

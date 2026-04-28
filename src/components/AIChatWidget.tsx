@@ -116,14 +116,14 @@ export default function AIChatWidget() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.2 }}
-            className="w-[340px] h-[480px] max-h-[60vh] glass-panel rounded-2xl flex flex-col overflow-hidden shadow-2xl shadow-blue-500/10"
+            className="w-[340px] h-[480px] max-h-[60vh] bg-white dark:bg-[#171717] border border-gray-200 dark:border-neutral-800 rounded-2xl flex flex-col overflow-hidden shadow-2xl shadow-blue-500/10"
           >
-            <div className="p-4 border-b border-slate-700/50 flex items-center justify-between bg-blue-500/5">
+            <div className="p-4 border-b border-gray-200 dark:border-neutral-800 flex items-center justify-between bg-blue-50 dark:bg-blue-500/5">
               <h3 className="font-semibold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 flex items-center gap-2">
                 <Bot size={18} className="text-blue-400" />
                 Gemini Assistant
               </h3>
-              <button onClick={() => setIsOpen(false)} className="text-slate-400 hover:text-white transition-colors">
+              <button onClick={() => setIsOpen(false)} className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
                 <X size={18} />
               </button>
             </div>
@@ -136,22 +136,22 @@ export default function AIChatWidget() {
                     msg.sender === "user"
                       ? "bg-blue-600 text-white self-end rounded-br-sm"
                       : msg.sender === "system"
-                      ? "bg-slate-800/50 text-slate-400 self-center text-center text-xs border border-slate-700/50"
-                      : "bg-slate-800 text-slate-200 self-start rounded-bl-sm border border-slate-700"
+                      ? "bg-gray-100 dark:bg-neutral-800/50 text-gray-500 dark:text-gray-400 self-center text-center text-xs border border-gray-200 dark:border-neutral-700/50"
+                      : "bg-gray-100 dark:bg-neutral-800 text-gray-900 dark:text-gray-200 self-start rounded-bl-sm border border-gray-200 dark:border-neutral-700"
                   }`}
                 >
                   {msg.text}
                 </div>
               ))}
               {loading && (
-                <div className="bg-slate-800 text-slate-400 self-start rounded-bl-sm border border-slate-700 p-3 rounded-xl text-sm flex gap-1">
+                <div className="bg-gray-100 dark:bg-neutral-800 text-gray-500 dark:text-gray-400 self-start rounded-bl-sm border border-gray-200 dark:border-neutral-700 p-3 rounded-xl text-sm flex gap-1">
                   <span className="animate-bounce">.</span><span className="animate-bounce delay-75">.</span><span className="animate-bounce delay-150">.</span>
                 </div>
               )}
               <div ref={messagesEndRef} />
             </div>
 
-            <form onSubmit={handleCommand} className="p-3 border-t border-slate-700/50 bg-slate-900/50 flex gap-2 items-end">
+            <form onSubmit={handleCommand} className="p-3 border-t border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900/50 flex gap-2 items-end">
               <textarea
                 value={input}
                 onChange={e => setInput(e.target.value)}
@@ -165,7 +165,7 @@ export default function AIChatWidget() {
                 }}
                 placeholder="Ask Gemini..."
                 rows={1}
-                className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500 transition-colors resize-none min-h-[40px] max-h-[120px] overflow-y-auto"
+                className="flex-1 bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 rounded-xl px-4 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 transition-colors resize-none min-h-[40px] max-h-[120px] overflow-y-auto"
               />
               <button
                 type="submit"

@@ -1,29 +1,9 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:is(.dark *));
+
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-inter);
-}
-
-:root {
-  --background: #0f172a;
-  --foreground: #f8fafc;
-  
-  --bg-card: rgba(30, 41, 59, 0.7);
-  --bg-card-hover: rgba(35, 49, 71, 0.8);
-  --border-subtle: rgba(51, 65, 85, 0.5);
-  --border-strong: rgba(71, 85, 105, 0.8);
-}
-
-.light {
-  --background: #f8fafc;
-  --foreground: #0f172a;
-  
-  --bg-card: rgba(255, 255, 255, 0.7);
-  --bg-card-hover: rgba(241, 245, 249, 0.8);
-  --border-subtle: rgba(203, 213, 225, 0.5);
-  --border-strong: rgba(148, 163, 184, 0.8);
 }
 
 html, body {
@@ -33,8 +13,7 @@ html, body {
 }
 
 body {
-  background-color: var(--background);
-  color: var(--foreground);
+  @apply bg-gray-50 dark:bg-[#0a0a0a] text-gray-900 dark:text-gray-100;
   background-image: 
     radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.08) 0px, transparent 50%),
     radial-gradient(at 100% 0%, rgba(16, 185, 129, 0.06) 0px, transparent 50%),
@@ -49,20 +28,6 @@ body {
 @keyframes bg-shift {
   0% { background-position: 0% 0%; }
   100% { background-position: 100% 100%; }
-}
-
-.glass-panel {
-  background-color: var(--bg-card);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--border-subtle);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
-  transition: all 0.2s ease;
-}
-
-.glass-panel:hover {
-  border-color: var(--border-strong);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.15);
 }
 
 .background-orb {
@@ -94,11 +59,11 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--border-strong);
+  @apply bg-gray-300 dark:bg-neutral-700;
   border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #64748b;
+  @apply bg-gray-400 dark:bg-neutral-600;
 }
 
 @layer utilities {
