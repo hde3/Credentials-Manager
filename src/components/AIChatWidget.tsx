@@ -151,18 +151,26 @@ export default function AIChatWidget() {
               <div ref={messagesEndRef} />
             </div>
 
-            <form onSubmit={handleCommand} className="p-3 border-t border-slate-700/50 bg-slate-900/50 flex gap-2">
-              <input
-                type="text"
+            <form onSubmit={handleCommand} className="p-3 border-t border-slate-700/50 bg-slate-900/50 flex gap-2 items-end">
+              <textarea
                 value={input}
                 onChange={e => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (!loading && input.trim()) {
+                      handleCommand(e as unknown as React.FormEvent);
+                    }
+                  }
+                }}
                 placeholder="Ask Gemini..."
-                className="flex-1 bg-slate-800 border border-slate-700 rounded-full px-4 py-2 text-sm outline-none focus:border-blue-500 transition-colors"
+                rows={1}
+                className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500 transition-colors resize-none min-h-[40px] max-h-[120px] overflow-y-auto"
               />
               <button
                 type="submit"
                 disabled={loading || !input.trim()}
-                className="w-9 h-9 rounded-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white flex items-center justify-center flex-shrink-0 transition-colors"
+                className="w-9 h-9 rounded-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white flex items-center justify-center flex-shrink-0 transition-colors mb-0.5"
               >
                 <Send size={16} className="-ml-0.5" />
               </button>

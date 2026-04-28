@@ -16,7 +16,7 @@ export async function sendPasswordEmail() {
 
     const htmlContent = `
       <div style="font-family: 'Inter', Helvetica, Arial, sans-serif; background-color: #0f172a; color: #f8fafc; padding: 40px; border-radius: 12px; max-width: 600px; margin: 0 auto; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);">
-        <h2 style="color: #60a5fa; border-bottom: 1px solid #1e293b; padding-bottom: 12px; margin-bottom: 24px;">Credentials Vault</h2>
+        <h2 style="color: #60a5fa; border-bottom: 1px solid #1e293b; padding-bottom: 12px; margin-bottom: 24px;">Credentials Vault - Secure Recovery</h2>
         <p style="font-size: 16px; line-height: 1.6; margin-bottom: 24px;">Hello,</p>
         <p style="font-size: 16px; line-height: 1.6; margin-bottom: 24px;">You requested your master password for the Credentials Manager app. Please keep this secure.</p>
         
@@ -25,7 +25,7 @@ export async function sendPasswordEmail() {
           <p style="margin: 0; font-size: 18px; font-weight: 600; color: #e2e8f0;">Credentials32@proton.me</p>
         </div>
 
-        <div style="background-color: #1e293b; border: 1px solid #3b82f6; border-radius: 8px; padding: 20px; margin-bottom: 32px; text-align: center;">
+        <div style="background-color: #111111; border: 2px solid #3b82f6; border-radius: 8px; padding: 20px; margin-bottom: 32px; text-align: center; box-shadow: 0 0 15px rgba(59, 130, 246, 0.2);">
           <p style="margin: 0 0 12px 0; font-size: 14px; color: #94a3b8;">Master Password:</p>
           <p style="margin: 0; font-size: 24px; font-weight: 700; color: #60a5fa; letter-spacing: 1px;">#Credentials98329</p>
         </div>
