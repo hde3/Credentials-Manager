@@ -29,7 +29,7 @@ export async function sendPasswordEmail() {
         
         <div style="background-color: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
           <p style="margin: 0 0 12px 0; font-size: 14px; color: #94a3b8;">User ID:</p>
-          <p style="margin: 0; font-size: 18px; font-weight: 600; color: #e2e8f0;">Credentials32@proton.me</p>
+          <p style="margin: 0; font-size: 18px; font-weight: 600; color: #e2e8f0;">manag00400@gmail.com</p>
         </div>
 
         <div style="background-color: #111111; border: 2px solid #3b82f6; border-radius: 8px; padding: 20px; margin-bottom: 32px; text-align: center; box-shadow: 0 0 15px rgba(59, 130, 246, 0.2);">
