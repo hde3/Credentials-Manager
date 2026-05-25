@@ -34,95 +34,103 @@ export default function Sidebar() {
   const handleAddFolder = async () => {
     const name = window.prompt("Enter new folder name:");
     if (name?.trim()) {
-      try {
-        await addFolder(name.trim());
-      } catch (err: unknown) {
-        const e = err as Error;
-        alert(e.message || "Failed to add folder");
-      }
+      try { await addFolder(name.trim()); }
+      catch (err: unknown) { alert((err as Error).message || "Failed to add folder"); }
     }
   };
 
   const handleDeleteFolder = async () => {
-    if (folders.length <= 1) {
-      alert("Cannot delete the only folder.");
-      return;
-    }
+    if (folders.length <= 1) { alert("Cannot delete the only folder."); return; }
     const folder = folders.find((f) => f.name === currentCategory);
     if (!folder) return;
-    
-    if (window.confirm(`Are you sure you want to delete the "${folder.name}" folder and all its credentials?`)) {
-      try {
-        await deleteFolder(folder.id, folder.name);
-      } catch (err: unknown) {
-        const e = err as Error;
-        alert(e.message || "Failed to delete folder");
-      }
+    if (window.confirm(`Delete "${folder.name}" and all its credentials?`)) {
+      try { await deleteFolder(folder.id, folder.name); }
+      catch (err: unknown) { alert((err as Error).message || "Failed to delete folder"); }
     }
   };
 
   return (
-    <div className="bg-white dark:bg-[#171717] border border-gray-200 dark:border-neutral-800 shadow-md backdrop-blur-md h-screen max-h-full rounded-2xl p-5 flex flex-col gap-6 overflow-hidden transition-colors">
-      <div className="flex items-center justify-between border-b border-gray-200 dark:border-neutral-800 pb-4">
+    <div className="glass rounded-[2rem] h-full flex flex-col overflow-hidden">
+      {/* ── Header ── */}
+      <div className="px-6 py-5 flex items-center justify-between border-b border-white/20 dark:border-white/8">
         <div>
-          <h2 className="text-xl font-bold leading-none text-gray-900 dark:text-gray-100">Credentials</h2>
+          <p className="text-[10px] font-semibold tracking-[0.15em] uppercase text-slate-500 dark:text-slate-400 mb-0.5">
+            Beautiful Organizer
+          </p>
+          <h2 className="text-xl font-bold tracking-tight bg-gradient-to-br from-slate-800 via-slate-700 to-slate-600 dark:from-white dark:via-slate-200 dark:to-slate-400 bg-clip-text text-transparent leading-none">
+            Credentials
+          </h2>
         </div>
-        <button 
+        <button
           onClick={toggleTheme}
-          className="p-2 rounded-lg bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors border border-gray-200 dark:border-neutral-700"
+          className="btn-icon"
           title="Toggle Theme"
+          aria-label="Toggle theme"
         >
-          {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+          {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
         </button>
       </div>
 
-      <div className="flex-1 flex flex-col gap-4 overflow-hidden">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Folders</h3>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={handleDeleteFolder}
-              className="p-1.5 rounded text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
-              title="Delete Current Folder"
-            >
-              <Trash2 size={16} />
+      {/* ── Folders list ── */}
+      <div className="flex-1 flex flex-col gap-3 overflow-hidden px-4 py-4">
+        <div className="flex items-center justify-between px-2">
+          <h3 className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.14em]">
+            Folders
+          </h3>
+          <div className="flex items-center gap-1.5">
+            <button onClick={handleDeleteFolder} className="btn-icon !w-7 !h-7 hover:!text-red-500" title="Delete Folder">
+              <Trash2 size={13} />
             </button>
-            <button
-              onClick={handleAddFolder}
-              className="p-1.5 rounded text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors border border-dashed border-gray-300 dark:border-neutral-600 hover:border-gray-400 dark:hover:border-neutral-400"
-              title="Add New Folder"
-            >
-              <FolderPlus size={16} />
+            <button onClick={handleAddFolder} className="btn-icon !w-7 !h-7 hover:!text-blue-500" title="Add Folder">
+              <FolderPlus size={14} />
             </button>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto -mr-2 pr-2 space-y-1">
-          {folders.map((folder) => (
-            <button
-              key={folder.id}
-              onClick={() => setCurrentCategory(folder.name)}
-              className={`w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                currentCategory === folder.name
-                  ? "bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-white border border-blue-200 dark:border-blue-500/20"
-                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 border border-transparent"
-              }`}
-            >
-              {folder.name}
-            </button>
-          ))}
+        <div className="flex-1 overflow-y-auto space-y-1 -mr-1 pr-1">
+          {folders.map((folder) => {
+            const isActive = currentCategory === folder.name;
+            return (
+              <button
+                key={folder.id}
+                onClick={() => setCurrentCategory(folder.name)}
+                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-sm transition-all duration-200 flex items-center gap-2.5 ${
+                  isActive
+                    ? "bg-white/65 dark:bg-white/12 text-slate-900 dark:text-white font-semibold border border-white/50 dark:border-white/15 shadow-sm"
+                    : "text-slate-600 dark:text-slate-300 hover:bg-white/35 dark:hover:bg-white/6 font-medium border border-transparent"
+                }`}
+              >
+                {/* Active blue checkmark */}
+                <span
+                  className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center transition-all duration-200 ${
+                    isActive
+                      ? "bg-[#0070eb] shadow-[0_2px_8px_rgba(0,112,235,0.4)]"
+                      : "bg-white/30 dark:bg-white/8 border border-white/30 dark:border-white/10"
+                  }`}
+                >
+                  {isActive && (
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                      <path d="M2 5.2l2 2 4-4" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  )}
+                </span>
+                <span className="truncate">{folder.name}</span>
+              </button>
+            );
+          })}
           {folders.length === 0 && (
-            <div className="text-sm text-gray-500 dark:text-gray-500 italic p-2">No folders yet.</div>
+            <p className="text-xs text-slate-400 dark:text-slate-500 italic px-4 py-2">No folders yet.</p>
           )}
         </div>
       </div>
-      
-      <div className="pt-3 border-t border-gray-200 dark:border-neutral-800 flex flex-col gap-2">
-        <button 
+
+      {/* ── Sign out ── */}
+      <div className="px-4 pb-5 pt-3 border-t border-white/20 dark:border-white/8">
+        <button
           onClick={() => supabase.auth.signOut()}
-          className="w-full flex items-center justify-center gap-2 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg transition-colors"
+          className="btn-glass w-full flex items-center justify-center gap-2 py-2.5 text-sm"
         >
-          <LogOut size={16} />
+          <LogOut size={14} />
           Sign Out
         </button>
       </div>

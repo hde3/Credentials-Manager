@@ -3,187 +3,237 @@
 import { useVault } from "@/context/VaultContext";
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bot, X, Send } from "lucide-react";
+import { X, Send } from "lucide-react";
 import { processGeminiCommand } from "@/app/actions/gemini";
 
-type Message = {
-  id: string;
-  text: string;
-  sender: "user" | "system" | "assistant";
-};
+type Message = { id: string; text: string; sender: "user" | "system" | "assistant" };
 
 export default function AIChatWidget() {
-  const { vaultData, folders, addFolder, renameFolder, deleteFolder, addCredential, editCredential, deleteCredential, setCurrentCategory } = useVault();
-  const [isOpen, setIsOpen] = useState(false);
-  const [input, setInput] = useState("");
+  const {
+    vaultData, folders,
+    addFolder, renameFolder, deleteFolder,
+    addCredential, editCredential, deleteCredential,
+    setCurrentCategory,
+  } = useVault();
+
+  const [isOpen, setIsOpen]   = useState(false);
+  const [input, setInput]     = useState("");
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
-    { id: "1", text: "Hi! I'm Gemini. Say \"Put test@gmail.com and pass 123 into Netflix\" and I'll add it for you.", sender: "system" }
+    { id: "0", text: `Hi! I'm Gemini. Try: "Put test@gmail.com / pass123 into Netflix" and I'll add it instantly.`, sender: "system" },
   ]);
-  
-  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  const endRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
-  const resolveFolderName = (name: string) => {
-    if (!name) return "Uncategorized";
-    const match = folders.find((f) => f.name.toLowerCase() === name.toLowerCase());
-    return match ? match.name : name;
-  };
+  const pushMsg = (text: string, sender: Message["sender"]) =>
+    setMessages(prev => [...prev, { id: Date.now().toString(), text, sender }]);
 
-  const handleCommand = async (e: React.FormEvent) => {
+  const resolveFolder = (name: string) =>
+    folders.find(f => f.name.toLowerCase() === name?.toLowerCase())?.name ?? name;
+
+  const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || loading) return;
-
     const userMsg = input.trim();
     setInput("");
-    setMessages(prev => [...prev, { id: Date.now().toString(), text: userMsg, sender: "user" }]);
+    pushMsg(userMsg, "user");
     setLoading(true);
 
     try {
-      const sanitizedVault: Record<string, {loginId: string}[]> = {};
+      /* Build vault context (no passwords) */
+      const ctx: Record<string, { loginId: string }[]> = {};
       folders.forEach(f => {
-        sanitizedVault[f.name] = (vaultData[f.name] || []).map(c => ({ loginId: c.login_id }));
+        ctx[f.name] = (vaultData[f.name] || []).map(c => ({ loginId: c.login_id }));
       });
-      const contextStr = JSON.stringify(sanitizedVault, null, 2);
 
-      const responseText = await processGeminiCommand(userMsg, contextStr);
-      
-      const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/);
-      let parsed = null;
-      if (jsonMatch) {
-        try { parsed = JSON.parse(jsonMatch[1]); } catch (e) {}
-      } else {
-        try { parsed = JSON.parse(responseText.trim()); } catch (e) {}
-      }
+      const raw = await processGeminiCommand(userMsg, JSON.stringify(ctx, null, 2));
 
-      if (!parsed) {
-        const fallbackMsg = responseText.replace(/```json[\s\S]*?```/g, "").trim() || "I can only add credentials, create folders, or rename folders.";
-        setMessages(prev => [...prev, { id: Date.now().toString(), text: fallbackMsg, sender: "assistant" }]);
-        setLoading(false);
-        return;
-      }
+      /* Parse JSON — strip any accidental markdown fences */
+      const cleaned = raw.replace(/```json|```/g, "").trim();
+      let actions: Record<string, string>[];
+      try { actions = JSON.parse(cleaned); }
+      catch { pushMsg(raw || "Sorry, I couldn't understand that.", "assistant"); setLoading(false); return; }
 
-      const actions = Array.isArray(parsed) ? parsed : [parsed];
-      const replyMessages: string[] = [];
+      if (!Array.isArray(actions)) actions = [actions];
 
-      for (const actionData of actions) {
-        if (actionData.action === "ADD_CREDENTIAL") {
-          const fName = resolveFolderName(actionData.folder);
-          const targetFolder = folders.find(f => f.name === fName);
-          if (!targetFolder) {
-            await addFolder(fName);
-            // Folder needs to be fetched, but context update is async. For robust parsing we'd wait,
-            // but for simplicity we rely on the user confirming or doing it in two steps.
-            replyMessages.push(`Added ${fName} folder. Please run the add command again.`);
-            continue;
+      const replies: string[] = [];
+
+      for (const a of actions) {
+        switch (a.action) {
+
+          case "ADD_CREDENTIAL": {
+            const fName = resolveFolder(a.folder);
+            let targetFolder = folders.find(f => f.name === fName);
+            if (!targetFolder) {
+              await addFolder(fName);
+              /* After addFolder, VaultContext refreshes; but we need the new folder ID.
+                 Tell the user to repeat — safest without a race condition. */
+              replies.push(`Created folder "${fName}". Please repeat the add command.`);
+              break;
+            }
+            await addCredential(targetFolder.id, a.loginId || "unknown", a.password || "unknown");
+            setCurrentCategory(fName);
+            replies.push(`Added ${a.loginId} to ${fName}.`);
+            break;
           }
-          await addCredential(targetFolder.id, actionData.loginId || "unknown", actionData.password || "unknown");
-          setCurrentCategory(fName);
-          replyMessages.push(`Added ${actionData.loginId} to ${fName}.`);
-        } else if (actionData.action === "CREATE_FOLDER") {
-          const fName = resolveFolderName(actionData.folder);
-          await addFolder(fName);
-          replyMessages.push(`Created folder: ${fName}`);
-        } else if (actionData.action === "DELETE_FOLDER") {
-          const fName = resolveFolderName(actionData.folder);
-          const target = folders.find(f => f.name === fName);
-          if (target) {
-            await deleteFolder(target.id, target.name);
-            replyMessages.push(`Deleted folder: ${fName}`);
+
+          case "EDIT_CREDENTIAL": {
+            const fName = resolveFolder(a.folder);
+            const creds = vaultData[fName] || [];
+            const cred = creds.find(c => c.login_id.toLowerCase() === (a.currentLoginId || "").toLowerCase());
+            if (!cred) { replies.push(`Credential "${a.currentLoginId}" not found in ${fName}.`); break; }
+            await editCredential(cred.id, a.newLoginId || cred.login_id, a.newPassword || "");
+            setCurrentCategory(fName);
+            replies.push(`Updated credential in ${fName}.`);
+            break;
           }
+
+          case "DELETE_CREDENTIAL": {
+            const fName = resolveFolder(a.folder);
+            const creds = vaultData[fName] || [];
+            const cred = creds.find(c => c.login_id.toLowerCase() === (a.loginId || "").toLowerCase());
+            if (!cred) { replies.push(`Credential "${a.loginId}" not found in ${fName}.`); break; }
+            await deleteCredential(cred.id);
+            replies.push(`Deleted ${a.loginId} from ${fName}.`);
+            break;
+          }
+
+          case "CREATE_FOLDER": {
+            await addFolder(a.folder);
+            replies.push(`Created folder: ${a.folder}`);
+            break;
+          }
+
+          case "RENAME_FOLDER": {
+            const folder = folders.find(f => f.name.toLowerCase() === (a.oldFolder || "").toLowerCase());
+            if (!folder) { replies.push(`Folder "${a.oldFolder}" not found.`); break; }
+            await renameFolder(folder.id, a.newFolder);
+            replies.push(`Renamed "${a.oldFolder}" → "${a.newFolder}".`);
+            break;
+          }
+
+          case "DELETE_FOLDER": {
+            const fName = resolveFolder(a.folder);
+            const folder = folders.find(f => f.name === fName);
+            if (!folder) { replies.push(`Folder "${fName}" not found.`); break; }
+            await deleteFolder(folder.id, folder.name);
+            replies.push(`Deleted folder: ${fName}`);
+            break;
+          }
+
+          case "CHAT":
+            replies.push(a.message || "Done.");
+            break;
+
+          default:
+            replies.push(`Unknown action: ${a.action}`);
         }
-        // Simplified parsing for editing/deleting based on old script
       }
 
-      setMessages(prev => [...prev, { id: Date.now().toString(), text: replyMessages.join("\n") || "Task completed.", sender: "assistant" }]);
+      pushMsg(replies.join("\n") || "Task completed.", "assistant");
     } catch (err: unknown) {
-      const e = err as Error;
-      setMessages(prev => [...prev, { id: Date.now().toString(), text: "Error: " + e.message, sender: "assistant" }]);
+      pushMsg("Error: " + (err as Error).message, "assistant");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-4">
+    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+      {/* ── Chat panel ── */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            initial={{ opacity: 0, y: 16, scale: 0.94 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            transition={{ duration: 0.2 }}
-            className="w-[340px] h-[480px] max-h-[60vh] bg-white dark:bg-[#171717] border border-gray-200 dark:border-neutral-800 rounded-2xl flex flex-col overflow-hidden shadow-2xl shadow-blue-500/10"
+            exit={{ opacity: 0, y: 16, scale: 0.94 }}
+            transition={{ duration: 0.22, ease: [0.34, 1.26, 0.64, 1] }}
+            className="glass-heavy rounded-[2rem] w-[340px] flex flex-col overflow-hidden"
+            style={{ maxHeight: "min(520px, 65vh)" }}
           >
-            <div className="p-4 border-b border-gray-200 dark:border-neutral-800 flex items-center justify-between bg-blue-50 dark:bg-blue-500/5">
-              <h3 className="font-semibold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 flex items-center gap-2">
-                <Bot size={18} className="text-blue-400" />
+            {/* Header */}
+            <div className="px-5 py-4 border-b border-white/20 dark:border-white/8 flex items-center justify-between">
+              <h3 className="font-semibold text-sm text-slate-800 dark:text-white flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white text-[10px] font-bold shadow-md">✦</span>
                 Gemini Assistant
               </h3>
-              <button onClick={() => setIsOpen(false)} className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
-                <X size={18} />
+              <button onClick={() => setIsOpen(false)} className="btn-icon !w-7 !h-7" aria-label="Close">
+                <X size={13} />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2.5">
               {messages.map(msg => (
                 <div
                   key={msg.id}
-                  className={`max-w-[85%] p-3 rounded-xl text-sm ${
+                  className={`max-w-[86%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${
                     msg.sender === "user"
-                      ? "bg-blue-600 text-white self-end rounded-br-sm"
+                      ? "btn-primary self-end rounded-br-sm text-white px-4"
                       : msg.sender === "system"
-                      ? "bg-gray-100 dark:bg-neutral-800/50 text-gray-500 dark:text-gray-400 self-center text-center text-xs border border-gray-200 dark:border-neutral-700/50"
-                      : "bg-gray-100 dark:bg-neutral-800 text-gray-900 dark:text-gray-200 self-start rounded-bl-sm border border-gray-200 dark:border-neutral-700"
+                      ? "self-center text-center text-xs glass rounded-xl text-slate-500 dark:text-slate-400 max-w-[95%] border border-white/20"
+                      : "glass self-start rounded-bl-sm text-slate-700 dark:text-slate-200 border border-white/25 dark:border-white/8"
                   }`}
                 >
                   {msg.text}
                 </div>
               ))}
               {loading && (
-                <div className="bg-gray-100 dark:bg-neutral-800 text-gray-500 dark:text-gray-400 self-start rounded-bl-sm border border-gray-200 dark:border-neutral-700 p-3 rounded-xl text-sm flex gap-1">
-                  <span className="animate-bounce">.</span><span className="animate-bounce delay-75">.</span><span className="animate-bounce delay-150">.</span>
+                <div className="glass self-start rounded-2xl rounded-bl-sm px-4 py-3 flex gap-1 border border-white/25">
+                  {[0, 150, 300].map(d => (
+                    <span key={d} className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: `${d}ms` }} />
+                  ))}
                 </div>
               )}
-              <div ref={messagesEndRef} />
+              <div ref={endRef} />
             </div>
 
-            <form onSubmit={handleCommand} className="p-3 border-t border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900/50 flex gap-2 items-end">
+            {/* Input */}
+            <form onSubmit={handleSend} className="p-3 border-t border-white/20 dark:border-white/8 flex gap-2 items-end">
               <textarea
                 value={input}
                 onChange={e => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
+                onKeyDown={e => {
+                  if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
-                    if (!loading && input.trim()) {
-                      handleCommand(e as unknown as React.FormEvent);
-                    }
+                    if (!loading && input.trim()) handleSend(e as unknown as React.FormEvent);
                   }
                 }}
-                placeholder="Ask Gemini..."
+                placeholder="Ask Gemini…"
                 rows={1}
-                className="flex-1 bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 rounded-xl px-4 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 transition-colors resize-none min-h-[40px] max-h-[120px] overflow-y-auto"
+                className="glass-input flex-1 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 dark:text-white placeholder-slate-400 resize-none overflow-hidden min-h-[38px] max-h-[100px]"
               />
               <button
                 type="submit"
                 disabled={loading || !input.trim()}
-                className="w-9 h-9 rounded-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white flex items-center justify-center flex-shrink-0 transition-colors mb-0.5"
+                className="btn-icon-primary flex-shrink-0 disabled:opacity-40"
+                aria-label="Send"
               >
-                <Send size={16} className="-ml-0.5" />
+                <Send size={14} className="-mr-0.5" />
               </button>
             </form>
           </motion.div>
         )}
       </AnimatePresence>
 
+      {/* ── Toggle button ── */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/30 flex items-center justify-center hover:scale-105 transition-transform"
+        aria-label="Toggle Gemini Assistant"
+        className="w-14 h-14 rounded-full flex items-center justify-center text-white transition-all duration-200 hover:scale-105 active:scale-95"
+        style={{
+          background: "linear-gradient(135deg, #a855f7 0%, #0070eb 100%)",
+          boxShadow: "0 6px 28px rgba(168,85,247,0.45), 0 2px 8px rgba(0,0,0,0.15)",
+          border: "0.5px solid rgba(255,255,255,0.3)",
+        }}
       >
-        <Bot size={28} />
+        {/* Gemini-style spark icon */}
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+          <path d="M12 2C12 2 13.5 8 18 9.5C13.5 11 12 17 12 17C12 17 10.5 11 6 9.5C10.5 8 12 2 12 2Z" />
+          <path d="M5 3C5 3 5.8 6 8 6.8C5.8 7.6 5 10.5 5 10.5C5 10.5 4.2 7.6 2 6.8C4.2 6 5 3 5 3Z" opacity="0.7"/>
+          <path d="M19 14C19 14 19.6 16.5 21 17C19.6 17.5 19 20 19 20C19 20 18.4 17.5 17 17C18.4 16.5 19 14 19 14Z" opacity="0.7"/>
+        </svg>
       </button>
     </div>
   );

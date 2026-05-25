@@ -20,12 +20,16 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col relative">
-        <div className="background-orb orb-one"></div>
-        <div className="background-orb orb-two"></div>
-        <VaultProvider>
-          {children}
-        </VaultProvider>
+      <body className="min-h-full flex flex-col relative overflow-x-hidden">
+        {/* Animated mesh background blobs */}
+        <div className="mesh-blob mesh-blob-1" />
+        <div className="mesh-blob mesh-blob-2" />
+        <div className="mesh-blob mesh-blob-3" />
+        <div className="relative z-10 flex flex-col flex-1">
+          <VaultProvider>
+            {children}
+          </VaultProvider>
+        </div>
       </body>
     </html>
   );

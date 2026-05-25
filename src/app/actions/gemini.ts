@@ -2,66 +2,57 @@
 
 export async function processGeminiCommand(prompt: string, vaultContextStr: string) {
   const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-  
-  if (!GEMINI_API_KEY) {
-    throw new Error("GEMINI_API_KEY is not configured in the server environment.");
-  }
+  if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not configured.");
 
-  const sysPrompt = `You are a strict credential manager assistant. You can ONLY do these 7 things:
+  const systemInstruction = `You are a strict credential manager assistant. You can ONLY perform these actions. You MUST respond with a JSON array only — absolutely no extra text, no markdown fences, no explanation.
 
-1. ADD_CREDENTIAL - Add a NEW login/password into a folder. Use ONLY when the credential does NOT already exist.
-2. EDIT_CREDENTIAL - Update the password (or loginId) of an EXISTING credential. Use this when the user says edit, update, or change password.
-3. DELETE_CREDENTIAL - Delete a specific login from a folder.
-4. CREATE_FOLDER - Create a new empty folder.
-5. RENAME_FOLDER - Rename an existing folder.
-6. DELETE_FOLDER - Delete a whole folder (use with caution).
-7. CHAT - Answer read-only queries about the user's existing vault items.
+ACTIONS:
+1. ADD_CREDENTIAL    – add a NEW credential (only if it does NOT already exist)
+2. EDIT_CREDENTIAL   – update loginId/password of an EXISTING credential
+3. DELETE_CREDENTIAL – delete a specific credential
+4. CREATE_FOLDER     – create a new empty folder
+5. RENAME_FOLDER     – rename an existing folder
+6. DELETE_FOLDER     – delete an entire folder
+7. CHAT              – answer a read-only question about the vault
 
-IMPORTANT RULES:
-- If a credential already exists in the vault snapshot below, NEVER use ADD_CREDENTIAL to update it. Use EDIT_CREDENTIAL instead.
-- Folder names are CASE-INSENSITIVE for the user, but you MUST output the EXACT EXISTING folder name case from the vault snapshot. For example, if the snapshot has "Gmail" and the user asks to add something to "gmail", you MUST output "folder": "Gmail".
-- If the user asks to perform multiple actions (like adding multiple credentials at once), you MUST output all of them as separate action objects within the JSON array.
-- You MUST respond ONLY with a JSON array of action objects. No extra text before or after it. Even if there's only one action, put it in an array.
+RULES:
+- If a credential already exists, use EDIT_CREDENTIAL, never ADD_CREDENTIAL.
+- Folder names are case-insensitive from the user's side, but output the EXACT casing from the vault snapshot.
+- For multiple actions, output all as separate objects in the array.
+- ALWAYS output ONLY a raw JSON array. Example:
 
-Examples:
+[{"action":"ADD_CREDENTIAL","folder":"Netflix","loginId":"user@mail.com","password":"abc123"}]
+[{"action":"EDIT_CREDENTIAL","folder":"Netflix","currentLoginId":"user@mail.com","newLoginId":"user@mail.com","newPassword":"newpass"}]
+[{"action":"DELETE_CREDENTIAL","folder":"Netflix","loginId":"user@mail.com"}]
+[{"action":"CREATE_FOLDER","folder":"Work"}]
+[{"action":"RENAME_FOLDER","oldFolder":"Work","newFolder":"Office"}]
+[{"action":"DELETE_FOLDER","folder":"Work"}]
+[{"action":"CHAT","message":"You have 3 credentials in Netflix."}]
 
-User: "Put user@mail.com and pass 123 into Netflix"
-\`\`\`json
-[{"action":"ADD_CREDENTIAL","folder":"Netflix","loginId":"user@mail.com","password":"123"}]
-\`\`\`
-
-User: "Add user1@a.com pass 1 and user2@a.com pass 2 to Social"
-\`\`\`json
-[
-  {"action":"ADD_CREDENTIAL","folder":"Social","loginId":"user1@a.com","password":"1"},
-  {"action":"ADD_CREDENTIAL","folder":"Social","loginId":"user2@a.com","password":"2"}
-]
-\`\`\`
-
-If there's an action, include nothing else.
-Here is a snapshot of the current vault contents (with passwords removed for security). Pay close attention to the EXACT spelling and casing of existing folders:
-${vaultContextStr}
-
-Current user prompt: ${prompt}`;
+Current vault snapshot (passwords hidden):
+${vaultContextStr}`;
 
   try {
     const response = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=" + GEMINI_API_KEY,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: sysPrompt }] }]
-        })
+          systemInstruction: { parts: [{ text: systemInstruction }] },
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.1, maxOutputTokens: 512 },
+        }),
       }
     );
 
     if (!response.ok) {
-      throw new Error(`API returned ${response.status}`);
+      const errBody = await response.text();
+      throw new Error(`Gemini API ${response.status}: ${errBody}`);
     }
 
     const data = await response.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || "I didn't understand that.";
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
   } catch (err: unknown) {
     const e = err as Error;
     console.error("Gemini Error:", e);

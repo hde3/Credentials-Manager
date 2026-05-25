@@ -2,14 +2,13 @@
 
 import { useVault } from "@/context/VaultContext";
 import { useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
 
 export default function CredentialForm() {
   const { currentCategory, folders, addCredential } = useVault();
-  const [loginId, setLoginId] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loginId, setLoginId]     = useState("");
+  const [password, setPassword]   = useState("");
+  const [showPassword, setShow]   = useState(false);
+  const [loading, setLoading]     = useState(false);
 
   const folder = folders.find((f) => f.name === currentCategory);
 
@@ -22,8 +21,7 @@ export default function CredentialForm() {
       setLoginId("");
       setPassword("");
     } catch (err: unknown) {
-      const e = err as Error;
-      alert("Error adding credential: " + e.message);
+      alert("Error adding credential: " + (err as Error).message);
     } finally {
       setLoading(false);
     }
@@ -32,52 +30,65 @@ export default function CredentialForm() {
   if (!folder) return null;
 
   return (
-    <section className="bg-white dark:bg-[#171717] border border-gray-200 dark:border-neutral-800 shadow-md backdrop-blur-md rounded-2xl p-6 transition-colors">
+    <section className="glass rounded-[2rem] p-6 md:p-8">
+      {/* Heading */}
       <div className="mb-6">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Add {currentCategory} Credential</h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400">Store and manage your credentials securely.</p>
+        <h2 className="text-xl font-bold tracking-tight text-slate-800 dark:text-white mb-1">
+          Add {currentCategory} Credential
+        </h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Store and manage your credentials securely.
+        </p>
       </div>
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-4 items-end">
+        {/* Login ID */}
         <label className="flex flex-col gap-1.5">
-          <span className="text-sm font-medium text-gray-600 dark:text-gray-300">{currentCategory} ID</span>
+          <span className="text-sm font-medium text-slate-700 dark:text-slate-300 ml-1">
+            {currentCategory} ID
+          </span>
           <input
             type="text"
             required
             value={loginId}
             onChange={(e) => setLoginId(e.target.value)}
-            placeholder={`Enter ${currentCategory} username / email`}
-            className="px-4 py-2.5 rounded-lg bg-gray-50 dark:bg-neutral-900/50 border border-gray-200 dark:border-neutral-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all text-sm text-gray-900 dark:text-white"
+            placeholder={`Enter ${currentCategory} email / username`}
+            className="glass-input rounded-2xl px-4 py-3 text-sm text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500"
           />
         </label>
 
-        <label className="flex flex-col gap-1.5 relative">
-          <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Password</span>
-          <div className="relative">
+        {/* Password with iOS toggle */}
+        <label className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium text-slate-700 dark:text-slate-300 ml-1">Password</span>
+          <div className="relative flex items-center">
             <input
               type={showPassword ? "text" : "password"}
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter password"
-              className="w-full px-4 py-2.5 pr-10 rounded-lg bg-gray-50 dark:bg-neutral-900/50 border border-gray-200 dark:border-neutral-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all text-sm text-gray-900 dark:text-white"
+              className="glass-input w-full rounded-2xl pl-4 pr-14 py-3 text-sm text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500"
             />
+            {/* iOS toggle inside input */}
             <button
               type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors"
+              aria-label="Toggle password visibility"
+              onClick={() => setShow(!showPassword)}
+              className="ios-toggle absolute right-3"
+              data-on={showPassword ? "true" : "false"}
             >
-              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              <span className="ios-toggle-thumb" />
             </button>
           </div>
         </label>
 
+        {/* Submit */}
         <button
           type="submit"
           disabled={loading}
-          className="h-[42px] px-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors text-sm disabled:opacity-50"
+          className="btn-primary px-7 py-3 text-sm disabled:opacity-50 disabled:cursor-not-allowed h-[46px]"
         >
-          {loading ? "Adding..." : "Add Account"}
+          {loading ? "Adding…" : "Add Account"}
         </button>
       </form>
     </section>

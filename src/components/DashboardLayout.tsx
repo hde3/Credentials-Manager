@@ -7,7 +7,7 @@ import Sidebar from "./Sidebar";
 import CredentialForm from "./CredentialForm";
 import CredentialTable from "./CredentialTable";
 import { Menu } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import AIChatWidget from "./AIChatWidget";
 
 export default function DashboardLayout() {
@@ -16,15 +16,17 @@ export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   useEffect(() => {
-    if (!authLoading && !user) {
-      router.push("/login");
-    }
+    if (!authLoading && !user) router.push("/login");
   }, [user, authLoading, router]);
 
   if (authLoading || !isLoaded) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="flex-1 flex items-center justify-center min-h-screen">
+        <div className="glass rounded-[2rem] px-10 py-8 flex flex-col items-center gap-4">
+          {/* Spinning glass ring */}
+          <div className="w-10 h-10 rounded-full border-2 border-white/30 border-t-[#0070eb] animate-spin" />
+          <p className="text-sm font-medium text-slate-600 dark:text-slate-300 tracking-wide">Loading vault…</p>
+        </div>
       </div>
     );
   }
@@ -32,44 +34,57 @@ export default function DashboardLayout() {
   if (!user) return null;
 
   return (
-    <div className="flex-1 flex w-full max-w-screen-2xl mx-auto p-4 md:p-8 gap-6 overflow-hidden h-screen">
-      {/* Sidebar */}
-      <motion.div
-        initial={false}
-        animate={{ width: sidebarOpen ? 280 : 0, opacity: sidebarOpen ? 1 : 0 }}
-        className="shrink-0 hidden md:block z-10"
-      >
-        <Sidebar />
-      </motion.div>
+    <div className="flex-1 flex w-full p-3 md:p-5 gap-4 md:gap-5 overflow-hidden h-screen">
+      {/* ── Sidebar ── */}
+      <AnimatePresence initial={false}>
+        {sidebarOpen && (
+          <motion.div
+            key="sidebar"
+            initial={{ width: 0, opacity: 0 }}
+            animate={{ width: 272, opacity: 1 }}
+            exit={{ width: 0, opacity: 0 }}
+            transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
+            className="shrink-0 hidden md:block overflow-hidden h-full"
+          >
+            <div className="w-[272px] h-full">
+              <Sidebar />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col gap-6 overflow-y-auto min-w-0">
-        <div className="flex items-center justify-between pb-2">
+      {/* ── Main content ── */}
+      <div className="flex-1 flex flex-col gap-5 overflow-y-auto min-w-0">
+        {/* Top bar */}
+        <div className="flex items-center justify-between pt-1 px-1">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 -ml-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors hidden md:block"
+            className="btn-icon hidden md:inline-flex"
+            title="Toggle sidebar"
+            aria-label="Toggle sidebar"
           >
-            <Menu size={24} />
+            <Menu size={16} />
           </button>
-          
+
           <div className="flex md:hidden items-center gap-2">
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">Vault</h1>
+            <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Vault</h1>
           </div>
 
           {currentCategory && (
-            <div className="px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm font-semibold">
+            <div className="px-4 py-1.5 rounded-full text-sm font-semibold text-slate-700 dark:text-slate-200 glass border-white/30">
               {currentCategory}
             </div>
           )}
         </div>
 
-        <div className="flex flex-col gap-6 max-w-5xl w-full mx-auto pb-24">
+        {/* Cards */}
+        <div className="flex flex-col gap-5 max-w-5xl w-full mx-auto pb-28">
           <CredentialForm />
           <CredentialTable />
         </div>
       </div>
 
-      {/* AI Widget */}
+      {/* ── AI Widget ── */}
       <AIChatWidget />
     </div>
   );
