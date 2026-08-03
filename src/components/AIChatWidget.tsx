@@ -49,11 +49,29 @@ export default function AIChatWidget() {
 
       const raw = await processGeminiCommand(userMsg, JSON.stringify(ctx, null, 2));
 
-      /* Parse JSON — strip any accidental markdown fences */
-      const cleaned = raw.replace(/```json|```/g, "").trim();
+      /* Parse JSON — extract JSON array or object even if conversational text surrounds it */
+      let cleaned = raw.trim();
+      const firstArrayChar = cleaned.indexOf("[");
+      const lastArrayChar = cleaned.lastIndexOf("]");
+      const firstObjectChar = cleaned.indexOf("{");
+      const lastObjectChar = cleaned.lastIndexOf("}");
+
+      if (firstArrayChar !== -1 && lastArrayChar !== -1 && lastArrayChar > firstArrayChar) {
+        cleaned = cleaned.substring(firstArrayChar, lastArrayChar + 1);
+      } else if (firstObjectChar !== -1 && lastObjectChar !== -1 && lastObjectChar > firstObjectChar) {
+        cleaned = cleaned.substring(firstObjectChar, lastObjectChar + 1);
+      } else {
+        cleaned = cleaned.replace(/```json|```/g, "").trim();
+      }
+
       let actions: Record<string, string>[];
-      try { actions = JSON.parse(cleaned); }
-      catch { pushMsg(raw || "Sorry, I couldn't understand that.", "assistant"); setLoading(false); return; }
+      try {
+        actions = JSON.parse(cleaned);
+      } catch {
+        pushMsg(raw || "Sorry, I couldn't understand that.", "assistant");
+        setLoading(false);
+        return;
+      }
 
       if (!Array.isArray(actions)) actions = [actions];
 

@@ -123,15 +123,19 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
 
   const addFolder = async (folderName: string) => {
     if (!user) return;
+    const normalized = folderName.trim().toLowerCase();
+    if (folders.some(f => f.name.toLowerCase() === normalized)) {
+      throw new Error("A folder with this name already exists.");
+    }
     const { error } = await supabase
       .from("folders")
-      .insert([{ name: folderName, user_id: user.id }]);
+      .insert([{ name: folderName.trim(), user_id: user.id }]);
     if (error) {
       console.error(error);
       throw error;
     }
     await refreshData();
-    setCurrentCategory(folderName);
+    setCurrentCategory(folderName.trim());
   };
 
   const deleteFolder = async (folderId: string, folderName: string) => {
@@ -143,22 +147,29 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     }
     
     if (currentCategory === folderName) {
-      setCurrentCategory("");
+      const remainingFolders = folders.filter(f => f.id !== folderId);
+      setCurrentCategory(remainingFolders.length > 0 ? remainingFolders[0].name : "");
     }
     await refreshData();
   };
 
   const renameFolder = async (folderId: string, newName: string) => {
+    if (!user) return;
+    const normalized = newName.trim().toLowerCase();
+    const duplicate = folders.find(f => f.name.toLowerCase() === normalized);
+    if (duplicate && duplicate.id !== folderId) {
+      throw new Error("A folder with this name already exists.");
+    }
     const { error } = await supabase
       .from("folders")
-      .update({ name: newName })
+      .update({ name: newName.trim() })
       .eq("id", folderId);
     if (error) {
       console.error(error);
       throw error;
     }
     await refreshData();
-    setCurrentCategory(newName);
+    setCurrentCategory(newName.trim());
   };
 
   const addCredential = async (folderId: string, loginId: string, password: string) => {
