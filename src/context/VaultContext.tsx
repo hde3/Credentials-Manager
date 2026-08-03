@@ -77,7 +77,6 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      setIsLoaded(false);
       // Fetch folders
       const { data: foldersData, error: foldersError } = await supabase
         .from("folders")

@@ -16,61 +16,20 @@ body {
   font-family: var(--font-inter), 'Inter', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: linear-gradient(135deg, #e8d5f5 0%, #c7e8fc 50%, #d0f5ee 100%);
-  animation: mesh-shift 20s ease infinite alternate;
-  background-size: 200% 200%;
-  color: #1a1b1f;
+  background: #f8fafc;
+  background-image: radial-gradient(circle at 50% -20%, #ffffff 0%, #f1f5f9 100%);
+  color: #0f172a;
 }
 
 .dark body {
-  background: linear-gradient(135deg, #1a0b2e 0%, #0d1f3c 50%, #0a2a1e 100%);
-  color: #f1f0f5;
-}
-
-@keyframes mesh-shift {
-  0%   { background-position: 0% 0%; }
-  50%  { background-position: 100% 50%; }
-  100% { background-position: 0% 100%; }
+  background: #020617;
+  background-image: radial-gradient(circle at 50% -20%, #1e293b 0%, #020617 100%);
+  color: #f8fafc;
 }
 
 /* ─── Animated mesh blobs ─── */
 .mesh-blob {
-  position: fixed;
-  border-radius: 50%;
-  filter: blur(90px);
-  z-index: 0;
-  pointer-events: none;
-  animation: blob-float 22s ease-in-out infinite alternate;
-}
-.mesh-blob-1 {
-  width: 45vw; height: 45vw;
-  background: rgba(168, 85, 247, 0.55);
-  top: -10%; left: -8%;
-  animation-duration: 22s;
-}
-.mesh-blob-2 {
-  width: 50vw; height: 50vw;
-  background: rgba(59, 130, 246, 0.45);
-  bottom: -15%; right: -8%;
-  animation-duration: 28s;
-  animation-delay: -8s;
-}
-.mesh-blob-3 {
-  width: 35vw; height: 35vw;
-  background: rgba(20, 184, 166, 0.4);
-  top: 25%; right: 15%;
-  animation-duration: 18s;
-  animation-delay: -14s;
-}
-.dark .mesh-blob-1 { background: rgba(109, 40, 217, 0.6); }
-.dark .mesh-blob-2 { background: rgba(29,  78, 216, 0.5); }
-.dark .mesh-blob-3 { background: rgba(13, 148, 136, 0.45); }
-
-@keyframes blob-float {
-  0%   { transform: translate(0,  0)  scale(1);    }
-  33%  { transform: translate(4%,  8%) scale(1.08); }
-  66%  { transform: translate(-4%, 4%) scale(0.94); }
-  100% { transform: translate(0,  0)  scale(1);    }
+  display: none;
 }
 
 /* ─── Glass surface ─── */
