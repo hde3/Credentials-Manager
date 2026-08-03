@@ -11,6 +11,9 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Credentials Vault",
   description: "High-End Credentials Manager",
+  icons: {
+    icon: "/logo_2.png",
+  },
 };
 
 export default function RootLayout({
