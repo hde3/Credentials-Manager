@@ -53,13 +53,16 @@ export default function Sidebar() {
     <div className="glass rounded-[2rem] h-full flex flex-col overflow-hidden">
       {/* ── Header ── */}
       <div className="px-6 py-5 flex items-center justify-between border-b border-white/20 dark:border-white/8">
-        <div>
-          <p className="text-[10px] font-semibold tracking-[0.15em] uppercase text-slate-500 dark:text-slate-400 mb-0.5">
-            Beautiful Organizer
-          </p>
-          <h2 className="text-xl font-bold tracking-tight bg-gradient-to-br from-slate-800 via-slate-700 to-slate-600 dark:from-white dark:via-slate-200 dark:to-slate-400 bg-clip-text text-transparent leading-none">
-            Credentials
-          </h2>
+        <div className="flex items-center gap-3">
+          <img src="/logo_2.png" alt="Logo" className="w-9 h-9 object-contain rounded-lg" />
+          <div>
+            <p className="text-[10px] font-semibold tracking-[0.15em] uppercase text-slate-500 dark:text-slate-400 mb-0.5">
+              Beautiful Organizer
+            </p>
+            <h2 className="text-xl font-bold tracking-tight bg-gradient-to-br from-slate-800 via-slate-700 to-slate-600 dark:from-white dark:via-slate-200 dark:to-slate-400 bg-clip-text text-transparent leading-none">
+              Credentials
+            </h2>
+          </div>
         </div>
         <button
           onClick={toggleTheme}

@@ -116,8 +116,8 @@ export default function LoginPage() {
 
         {/* Icon + title */}
         <div className="flex flex-col items-center text-center gap-2 relative z-10">
-          <div className="btn-icon-primary w-14 h-14 mb-1 shadow-[0_6px_24px_rgba(0,112,235,0.4)]">
-            <Lock size={24} />
+          <div className="w-16 h-16 mb-1 rounded-2xl p-2 glass flex items-center justify-center shadow-[0_6px_24px_rgba(0,112,235,0.25)] border border-white/40 dark:border-white/15">
+            <img src="/logo_2.png" alt="Credentials Vault Logo" className="w-full h-full object-contain drop-shadow" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-800 dark:text-white">Credentials Vault</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400">Secure your digital life</p>
