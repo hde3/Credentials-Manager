@@ -80,12 +80,27 @@ export default function LoginPage() {
   };
 
   const handleForgotPassword = async () => {
+    if (!email) {
+      setError("Please enter your email in the email field first.");
+      return;
+    }
+    if (!ALLOWED_EMAILS.includes(email.toLowerCase())) {
+      setError("Access Denied: this email is not authorized.");
+      return;
+    }
     setLoading(true); reset(); setMessage("Sending…");
     try {
-      const result = await sendPasswordEmail();
-      result.success ? setMessage("Check your email!") : setError("Failed to send email.");
-    } catch { setError("An error occurred."); }
-    finally { setLoading(false); }
+      const result = await sendPasswordEmail(email);
+      if (result.success) {
+        setMessage("Check your email!");
+      } else {
+        setError(result.error || "Failed to send email.");
+      }
+    } catch { 
+      setError("An error occurred."); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   return (
