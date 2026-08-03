@@ -2,7 +2,7 @@
 
 import { useVault, Credential } from "@/context/VaultContext";
 import React, { useState } from "react";
-import { Copy, Trash2, Pencil, X } from "lucide-react";
+import { Copy, Trash2, Pencil, X, Eye, EyeOff } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { decryptPassword } from "@/lib/crypto";
 
@@ -49,15 +49,15 @@ const CredentialRow = React.memo(({
           <span className="glass rounded-xl px-3 py-1 text-xs font-mono tracking-widest text-slate-700 dark:text-slate-300">
             {isRevealed ? decrypted : "••••••••"}
           </span>
-          {/* iOS reveal toggle */}
+          {/* Password reveal */}
           <button
             type="button"
             aria-label="Toggle password"
             onClick={() => toggleReveal(cred.id)}
-            className="ios-toggle !w-9 !h-5"
-            data-on={isRevealed ? "true" : "false"}
+            className="btn-icon !w-7 !h-7"
+            title={isRevealed ? "Hide password" : "Show password"}
           >
-            <span className="ios-toggle-thumb !w-4 !h-4" />
+            {isRevealed ? <EyeOff size={13} /> : <Eye size={13} />}
           </button>
           {/* Copy */}
           <button onClick={() => copy(decrypted)} className="btn-icon !w-6 !h-6" title="Copy password">
@@ -211,23 +211,23 @@ export default function CredentialTable() {
               <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-1 tracking-tight">Edit Credential</h3>
               <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">Update login ID or password.</p>
 
-              <form onSubmit={submitEdit} className="flex flex-col gap-4">
-                <label className="flex flex-col gap-1.5">
+              <form onSubmit={submitEdit} className="flex flex-col gap-4 w-full">
+                <label className="flex flex-col gap-1.5 w-full">
                   <span className="text-sm font-medium text-slate-700 dark:text-slate-300 ml-1">Login ID / Username</span>
                   <input
                     type="text" required
                     value={editLoginId}
                     onChange={e => setEditLoginId(e.target.value)}
-                    className="glass-input rounded-2xl px-4 py-3 text-sm text-slate-800 dark:text-white"
+                    className="glass-input w-full rounded-2xl px-4 py-3 text-sm text-slate-800 dark:text-white"
                   />
                 </label>
-                <label className="flex flex-col gap-1.5">
+                <label className="flex flex-col gap-1.5 w-full">
                   <span className="text-sm font-medium text-slate-700 dark:text-slate-300 ml-1">Password</span>
                   <input
                     type="text" required
                     value={editPassword}
                     onChange={e => setEditPw(e.target.value)}
-                    className="glass-input rounded-2xl px-4 py-3 text-sm text-slate-800 dark:text-white"
+                    className="glass-input w-full rounded-2xl px-4 py-3 text-sm text-slate-800 dark:text-white"
                   />
                 </label>
 
