@@ -2,11 +2,37 @@
 
 import { useVault, Credential } from "@/context/VaultContext";
 import React, { useState } from "react";
-import { Copy, Trash2, Pencil, X, Eye, EyeOff } from "lucide-react";
+import { Copy, Trash2, Pencil, X, Eye, EyeOff, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { decryptPassword } from "@/lib/crypto";
 
-/* ─── Single credential row ─── */
+/* ─── Copy button with transient tick ─── */
+function CopyButton({
+  value, title, className = "",
+}: { value: string; title: string; className?: string }) {
+  const [done, setDone] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(value);
+    setDone(true);
+    setTimeout(() => setDone(false), 1200);
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      className={`btn-icon !w-6 !h-6 ${className}`}
+      title={done ? "Copied" : title}
+      aria-label={title}
+      style={done ? { color: "var(--success)" } : undefined}
+    >
+      {done ? <Check size={11} /> : <Copy size={11} />}
+    </button>
+  );
+}
+
+/* ─── Desktop row ─── */
 const CredentialRow = React.memo(({
   cred, index, isRevealed, toggleReveal, onEdit, onDelete,
 }: {
@@ -16,64 +42,70 @@ const CredentialRow = React.memo(({
   onDelete: (id: string, loginId: string) => void;
 }) => {
   const decrypted = decryptPassword(cred.password);
-  const copy = (text: string) => navigator.clipboard.writeText(text);
 
   return (
     <motion.tr
       layout
-      initial={{ opacity: 0, y: -8 }}
+      initial={{ opacity: 0, y: -6 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, height: 0, overflow: "hidden" }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="border-b border-white/15 dark:border-white/6 hover:bg-white/25 dark:hover:bg-white/5 transition-colors duration-150 group"
+      className="vault-row group"
     >
       {/* # */}
-      <td className="py-3.5 px-5 text-xs font-mono text-slate-400 dark:text-slate-500">{index + 1}</td>
+      <td className="mono text-[11px] tabular-nums" style={{ color: "var(--text-faint)" }}>
+        {String(index + 1).padStart(2, "0")}
+      </td>
 
       {/* Login ID */}
-      <td className="py-3.5 px-5">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate max-w-[180px]">
+      <td>
+        <div className="flex items-center gap-1.5">
+          <span className="mono text-[12.5px] truncate max-w-[240px]" style={{ color: "var(--text)" }}>
             {cred.login_id}
           </span>
-          <button onClick={() => copy(cred.login_id)} className="btn-icon !w-6 !h-6 opacity-0 group-hover:opacity-100 transition-opacity" title="Copy ID">
-            <Copy size={11} />
-          </button>
+          <CopyButton
+            value={cred.login_id}
+            title="Copy ID"
+            className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+          />
         </div>
       </td>
 
       {/* Password */}
-      <td className="py-3.5 px-5">
-        <div className="flex items-center gap-2">
-          {/* Password pill */}
-          <span className="glass rounded-xl px-3 py-1 text-xs font-mono tracking-widest text-slate-700 dark:text-slate-300">
-            {isRevealed ? decrypted : "••••••••"}
-          </span>
-          {/* Password reveal */}
+      <td>
+        <div className="flex items-center gap-1.5">
+          <span className="secret-pill">{isRevealed ? decrypted : "••••••••••"}</span>
           <button
             type="button"
             aria-label="Toggle password"
             onClick={() => toggleReveal(cred.id)}
-            className="btn-icon !w-7 !h-7"
+            className="btn-icon !w-6 !h-6"
             title={isRevealed ? "Hide password" : "Show password"}
           >
-            {isRevealed ? <EyeOff size={13} /> : <Eye size={13} />}
+            {isRevealed ? <EyeOff size={11} /> : <Eye size={11} />}
           </button>
-          {/* Copy */}
-          <button onClick={() => copy(decrypted)} className="btn-icon !w-6 !h-6" title="Copy password">
-            <Copy size={11} />
-          </button>
+          <CopyButton value={decrypted} title="Copy password" />
         </div>
       </td>
 
       {/* Actions */}
-      <td className="py-3.5 px-5">
-        <div className="flex items-center gap-1.5">
-          <button onClick={() => onEdit(cred)} className="btn-icon !w-7 !h-7 hover:!text-blue-500" title="Edit">
-            <Pencil size={13} />
+      <td>
+        <div className="flex items-center gap-1 justify-end">
+          <button
+            onClick={() => onEdit(cred)}
+            className="btn-icon !w-6 !h-6"
+            title="Edit"
+            aria-label="Edit credential"
+          >
+            <Pencil size={11} />
           </button>
-          <button onClick={() => onDelete(cred.id, cred.login_id)} className="btn-icon !w-7 !h-7 hover:!text-red-500" title="Delete">
-            <Trash2 size={13} />
+          <button
+            onClick={() => onDelete(cred.id, cred.login_id)}
+            className="btn-icon !w-6 !h-6 hover:!text-red-500"
+            title="Delete"
+            aria-label="Delete credential"
+          >
+            <Trash2 size={11} />
           </button>
         </div>
       </td>
@@ -82,13 +114,99 @@ const CredentialRow = React.memo(({
 });
 CredentialRow.displayName = "CredentialRow";
 
-/* ─── Main table component ─── */
+/* ─── Mobile card (no horizontal scroll) ─── */
+const CredentialCard = React.memo(({
+  cred, index, isRevealed, toggleReveal, onEdit, onDelete,
+}: {
+  cred: Credential; index: number;
+  isRevealed: boolean; toggleReveal: (id: string) => void;
+  onEdit: (cred: Credential) => void;
+  onDelete: (id: string, loginId: string) => void;
+}) => {
+  const decrypted = decryptPassword(cred.password);
+
+  return (
+    <motion.li
+      layout
+      initial={{ opacity: 0, y: -6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, height: 0, overflow: "hidden" }}
+      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+      className="rounded-[10px] p-3"
+      style={{ border: "1px solid var(--line)" }}
+    >
+      <div className="flex items-start justify-between gap-2 mb-2.5">
+        <div className="min-w-0 flex-1">
+          <p className="mono text-[9.5px] mb-1" style={{ color: "var(--text-faint)" }}>
+            {String(index + 1).padStart(2, "0")}
+          </p>
+          <p className="mono text-[12.5px] break-all leading-snug" style={{ color: "var(--text)" }}>
+            {cred.login_id}
+          </p>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <CopyButton value={cred.login_id} title="Copy ID" />
+          <button
+            onClick={() => onEdit(cred)}
+            className="btn-icon !w-6 !h-6"
+            title="Edit"
+            aria-label="Edit credential"
+          >
+            <Pencil size={11} />
+          </button>
+          <button
+            onClick={() => onDelete(cred.id, cred.login_id)}
+            className="btn-icon !w-6 !h-6 hover:!text-red-500"
+            title="Delete"
+            aria-label="Delete credential"
+          >
+            <Trash2 size={11} />
+          </button>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-1.5">
+        <span className="secret-pill flex-1 min-w-0 truncate">
+          {isRevealed ? decrypted : "••••••••••"}
+        </span>
+        <button
+          type="button"
+          aria-label="Toggle password"
+          onClick={() => toggleReveal(cred.id)}
+          className="btn-icon !w-6 !h-6"
+          title={isRevealed ? "Hide password" : "Show password"}
+        >
+          {isRevealed ? <EyeOff size={11} /> : <Eye size={11} />}
+        </button>
+        <CopyButton value={decrypted} title="Copy password" />
+      </div>
+    </motion.li>
+  );
+});
+CredentialCard.displayName = "CredentialCard";
+
+/* ─── Empty state ─── */
+function EmptyState({ category }: { category: string }) {
+  return (
+    <div className="py-12 px-6 text-center">
+      <p className="mono text-[10.5px] uppercase tracking-[0.13em]" style={{ color: "var(--text-faint)" }}>
+        Empty
+      </p>
+      <p className="text-[12.5px] mt-2.5" style={{ color: "var(--text-dim)" }}>
+        Add your first {category} credential using the form above.
+      </p>
+    </div>
+  );
+}
+
+/* ─── Main component ─── */
 export default function CredentialTable() {
   const { currentCategory, vaultData, deleteCredential, editCredential } = useVault();
   const [revealed, setRevealed]       = useState<Set<string>>(new Set());
   const [editingCred, setEditingCred] = useState<Credential | null>(null);
   const [editLoginId, setEditLoginId] = useState("");
   const [editPassword, setEditPw]     = useState("");
+  const [showEditPw, setShowEditPw]   = useState(false);
   const [loading, setLoading]         = useState(false);
 
   const credentials = vaultData[currentCategory] || [];
@@ -113,6 +231,7 @@ export default function CredentialTable() {
     setEditingCred(cred);
     setEditLoginId(cred.login_id);
     setEditPw(decryptPassword(cred.password));
+    setShowEditPw(false);
   }, []);
 
   const submitEdit = async (e: React.FormEvent) => {
@@ -128,44 +247,39 @@ export default function CredentialTable() {
 
   return (
     <>
-      <section className="glass rounded-[2rem] p-6 md:p-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-xl font-bold tracking-tight text-slate-800 dark:text-white mb-1">
-              Saved {currentCategory} Credentials
+      <section className="glass rounded-xl p-5 sm:p-6 animate-rise">
+        {/* ── Header ── */}
+        <div className="flex items-start justify-between gap-3 mb-5">
+          <div className="min-w-0">
+            <h2 className="text-[14px] font-semibold tracking-tight" style={{ color: "var(--text)" }}>
+              Saved in {currentCategory}
             </h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Everything stays tidy and easy to copy.</p>
+            <p className="text-[12.5px] mt-1" style={{ color: "var(--text-dim)" }}>
+              Reveal with the eye, or copy straight to clipboard.
+            </p>
           </div>
-          <span className="glass rounded-full px-3.5 py-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
+          <span className="chip shrink-0">
             {credentials.length} {credentials.length === 1 ? "entry" : "entries"}
           </span>
         </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto rounded-2xl border border-white/20 dark:border-white/8 bg-white/18 dark:bg-black/15 backdrop-blur-sm">
-          <table className="w-full text-left border-collapse min-w-[640px]">
+        {/* ── Desktop table ── */}
+        <div className="hidden md:block rounded-[10px] overflow-hidden" style={{ border: "1px solid var(--line)" }}>
+          <table className="vault-table w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-white/20 dark:border-white/8">
-                <th className="py-3.5 px-5 text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400 w-12">#</th>
-                <th className="py-3.5 px-5 text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">{currentCategory} ID</th>
-                <th className="py-3.5 px-5 text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">Password</th>
-                <th className="py-3.5 px-5 text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400 w-24">Actions</th>
+              <tr>
+                <th className="w-14">#</th>
+                <th>{currentCategory} ID</th>
+                <th>Password</th>
+                <th className="w-24 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
               <AnimatePresence initial={false}>
                 {credentials.length === 0 ? (
-                  <motion.tr initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                    <td colSpan={4} className="py-14 text-center">
-                      <div className="flex flex-col items-center gap-3 text-slate-400 dark:text-slate-500">
-                        <svg className="w-10 h-10 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                            d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                        </svg>
-                        <p className="text-sm font-medium text-slate-600 dark:text-slate-400">No accounts yet</p>
-                        <p className="text-xs">Add your first {currentCategory} credential above.</p>
-                      </div>
+                  <motion.tr key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    <td colSpan={4} className="!p-0">
+                      <EmptyState category={currentCategory} />
                     </td>
                   </motion.tr>
                 ) : (
@@ -185,70 +299,116 @@ export default function CredentialTable() {
             </tbody>
           </table>
         </div>
+
+        {/* ── Mobile cards ── */}
+        <div className="md:hidden">
+          {credentials.length === 0 ? (
+            <div className="rounded-[10px]" style={{ border: "1px solid var(--line)" }}>
+              <EmptyState category={currentCategory} />
+            </div>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              <AnimatePresence initial={false}>
+                {credentials.map((cred, i) => (
+                  <CredentialCard
+                    key={cred.id}
+                    cred={cred}
+                    index={i}
+                    isRevealed={revealed.has(cred.id)}
+                    toggleReveal={toggleReveal}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                  />
+                ))}
+              </AnimatePresence>
+            </ul>
+          )}
+        </div>
       </section>
 
-      {/* ── Edit Modal (glass action sheet) ── */}
+      {/* ══ Edit modal ══ */}
       <AnimatePresence>
         {editingCred && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.16 }}
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            style={{ backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", background: "rgba(0,0,0,0.22)" }}
+            style={{ background: "rgba(6, 7, 9, 0.55)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)" }}
+            onClick={() => setEditingCred(null)}
           >
             <motion.div
-              initial={{ scale: 0.92, opacity: 0, y: 24 }}
+              initial={{ scale: 0.97, opacity: 0, y: 10 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.92, opacity: 0, y: 24 }}
-              transition={{ type: "spring", stiffness: 320, damping: 28 }}
-              className="glass-heavy rounded-[2rem] w-full max-w-md p-7 relative"
+              exit={{ scale: 0.97, opacity: 0, y: 10 }}
+              transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+              className="glass-heavy rounded-2xl w-full max-w-md p-6 relative"
+              onClick={(e) => e.stopPropagation()}
             >
               <button
                 onClick={() => setEditingCred(null)}
-                className="btn-icon absolute top-5 right-5"
+                className="btn-icon absolute top-4 right-4"
                 aria-label="Close"
               >
-                <X size={14} />
+                <X size={13} />
               </button>
 
-              <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-1 tracking-tight">Edit Credential</h3>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">Update login ID or password.</p>
+              <div className="mb-5 pr-10">
+                <h3 className="text-[15px] font-semibold tracking-tight" style={{ color: "var(--text)" }}>
+                  Edit credential
+                </h3>
+                <p className="text-[12.5px] mt-1" style={{ color: "var(--text-dim)" }}>
+                  Re-encrypted on save.
+                </p>
+              </div>
 
               <form onSubmit={submitEdit} className="flex flex-col gap-4 w-full">
-                <label className="flex flex-col gap-1.5 w-full">
-                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300 ml-1">Login ID / Username</span>
+                <label className="flex flex-col gap-2 w-full">
+                  <span className="field-label ml-0.5">Login ID / Username</span>
                   <input
                     type="text" required
                     value={editLoginId}
-                    onChange={e => setEditLoginId(e.target.value)}
-                    className="glass-input w-full rounded-2xl px-4 py-3 text-sm text-slate-800 dark:text-white"
-                  />
-                </label>
-                <label className="flex flex-col gap-1.5 w-full">
-                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300 ml-1">Password</span>
-                  <input
-                    type="text" required
-                    value={editPassword}
-                    onChange={e => setEditPw(e.target.value)}
-                    className="glass-input w-full rounded-2xl px-4 py-3 text-sm text-slate-800 dark:text-white"
+                    onChange={(e) => setEditLoginId(e.target.value)}
+                    className="glass-input mono w-full px-3.5 py-2.5 text-[13px]"
                   />
                 </label>
 
-                <div className="flex gap-3 pt-2">
+                <label className="flex flex-col gap-2 w-full">
+                  <span className="field-label ml-0.5">Password</span>
+                  <div className="relative flex items-center w-full">
+                    <input
+                      type={showEditPw ? "text" : "password"}
+                      required
+                      value={editPassword}
+                      onChange={(e) => setEditPw(e.target.value)}
+                      className="glass-input mono w-full pl-3.5 pr-10 py-2.5 text-[13px]"
+                    />
+                    <button
+                      type="button"
+                      aria-label="Toggle password visibility"
+                      onClick={() => setShowEditPw(!showEditPw)}
+                      className="absolute right-2 btn-icon !w-6 !h-6"
+                    >
+                      {showEditPw ? <EyeOff size={12} /> : <Eye size={12} />}
+                    </button>
+                  </div>
+                </label>
+
+                <div className="flex gap-2 pt-1">
                   <button
                     type="button"
                     onClick={() => setEditingCred(null)}
-                    className="btn-glass flex-1 py-3 text-sm"
+                    className="btn-glass flex-1 py-2.5 text-[13px]"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={loading}
-                    className="btn-primary flex-1 py-3 text-sm disabled:opacity-50"
+                    className="btn-primary flex-1 py-2.5 text-[13px]"
                   >
-                    {loading ? "Saving…" : "Save Changes"}
+                    {loading ? "Saving" : "Save changes"}
                   </button>
                 </div>
               </form>

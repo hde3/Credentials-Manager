@@ -2,7 +2,7 @@
 
 import { useVault } from "@/context/VaultContext";
 import { useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Plus } from "lucide-react";
 
 export default function CredentialForm() {
   const { currentCategory, folders, addCredential } = useVault();
@@ -31,52 +31,51 @@ export default function CredentialForm() {
   if (!folder) return null;
 
   return (
-    <section className="glass rounded-[2rem] p-6 md:p-8">
-      {/* Heading */}
-      <div className="mb-6">
-        <h2 className="text-xl font-bold tracking-tight text-slate-800 dark:text-white mb-1">
-          Add {currentCategory} Credential
+    <section className="glass rounded-xl p-5 sm:p-6 animate-rise">
+      {/* ── Heading ── */}
+      <div className="mb-5">
+        <h2 className="text-[14px] font-semibold tracking-tight" style={{ color: "var(--text)" }}>
+          Add {currentCategory} credential
         </h2>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          Store and manage your credentials securely.
+        <p className="text-[12.5px] mt-1" style={{ color: "var(--text-dim)" }}>
+          Encrypted on this device before it is stored.
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-4 items-end">
+      {/* ── Form ── */}
+      <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3 items-end">
         {/* Login ID */}
-        <label className="flex flex-col gap-1.5 w-full">
-          <span className="text-sm font-medium text-slate-700 dark:text-slate-300 ml-1">
-            {currentCategory} ID
-          </span>
+        <label className="flex flex-col gap-2 w-full min-w-0">
+          <span className="field-label ml-0.5">{currentCategory} ID</span>
           <input
             type="text"
             required
             value={loginId}
             onChange={(e) => setLoginId(e.target.value)}
-            placeholder={`Enter ${currentCategory} email / username`}
-            className="glass-input w-full rounded-2xl px-4 py-3 text-sm text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500"
+            placeholder="email or username"
+            className="glass-input mono w-full px-3.5 py-2.5 text-[13px]"
           />
         </label>
 
         {/* Password */}
-        <label className="flex flex-col gap-1.5 w-full">
-          <span className="text-sm font-medium text-slate-700 dark:text-slate-300 ml-1">Password</span>
+        <label className="flex flex-col gap-2 w-full min-w-0">
+          <span className="field-label ml-0.5">Password</span>
           <div className="relative flex items-center w-full">
             <input
               type={showPassword ? "text" : "password"}
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter password"
-              className="glass-input w-full rounded-2xl pl-4 pr-12 py-3 text-sm text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500"
+              placeholder="••••••••••"
+              className="glass-input mono w-full pl-3.5 pr-10 py-2.5 text-[13px]"
             />
             <button
               type="button"
               aria-label="Toggle password visibility"
               onClick={() => setShow(!showPassword)}
-              className="absolute right-4 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition-colors"
+              className="absolute right-2 btn-icon !w-6 !h-6"
             >
-              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              {showPassword ? <EyeOff size={12} /> : <Eye size={12} />}
             </button>
           </div>
         </label>
@@ -85,9 +84,16 @@ export default function CredentialForm() {
         <button
           type="submit"
           disabled={loading}
-          className="btn-primary px-7 py-3 text-sm disabled:opacity-50 disabled:cursor-not-allowed h-[46px]"
+          className="btn-primary w-full md:w-auto px-5 h-[38px] text-[13px]"
         >
-          {loading ? "Adding…" : "Add Account"}
+          {loading ? (
+            "Saving"
+          ) : (
+            <>
+              <Plus size={14} />
+              Add
+            </>
+          )}
         </button>
       </form>
     </section>

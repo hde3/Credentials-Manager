@@ -14,7 +14,7 @@ type SidebarProps = {
 };
 
 export default function Sidebar({ onNavigate, onClose }: SidebarProps) {
-  const { folders, currentCategory, setCurrentCategory, addFolder, deleteFolder } = useVault();
+  const { folders, currentCategory, setCurrentCategory, addFolder, deleteFolder, vaultData, user } = useVault();
   const [theme, setTheme] = useState("dark");
 
   useEffect(() => {
@@ -63,109 +63,129 @@ export default function Sidebar({ onNavigate, onClose }: SidebarProps) {
   };
 
   return (
-    <div className="glass rounded-[2rem] h-full flex flex-col overflow-hidden">
-      {/* ── Header ── */}
-      <div className="px-6 py-5 flex items-center justify-between border-b border-white/20 dark:border-white/8">
-        <div className="flex items-center gap-3">
-          <Image
-            src="/logo_2.png"
-            alt="Logo"
-            width={36}
-            height={36}
-            className="w-9 h-9 object-contain rounded-lg"
-          />
-          <div>
-            <p className="text-[10px] font-semibold tracking-[0.15em] uppercase text-slate-500 dark:text-slate-400 mb-0.5">
-              Beautiful Organizer
-            </p>
-            <h2 className="text-xl font-bold tracking-tight bg-gradient-to-br from-slate-800 via-slate-700 to-slate-600 dark:from-white dark:via-slate-200 dark:to-slate-400 bg-clip-text text-transparent leading-none">
+    <div className="glass rounded-xl h-full flex flex-col overflow-hidden">
+      {/* ══ Header ══ */}
+      <div className="px-3.5 py-3.5 flex items-center justify-between gap-2 hairline-b">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div
+            className="w-8 h-8 rounded-[9px] shrink-0 flex items-center justify-center p-1.5"
+            style={{ background: "var(--sunken)", border: "1px solid var(--line)" }}
+          >
+            <Image
+              src="/logo_2.png"
+              alt="Logo"
+              width={32}
+              height={32}
+              className="w-full h-full object-contain"
+            />
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-[13.5px] font-semibold tracking-tight leading-none truncate" style={{ color: "var(--text)" }}>
               Credentials
             </h2>
+            <p className="mono text-[9px] uppercase tracking-[0.15em] mt-1.5 leading-none" style={{ color: "var(--text-faint)" }}>
+              Vault
+            </p>
           </div>
         </div>
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={toggleTheme}
-            className="btn-icon"
-            title="Toggle Theme"
-            aria-label="Toggle theme"
-          >
-            {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+
+        <div className="flex items-center gap-1 shrink-0">
+          <button onClick={toggleTheme} className="btn-icon !w-7 !h-7" title="Toggle Theme" aria-label="Toggle theme">
+            {theme === "dark" ? <Sun size={13} /> : <Moon size={13} />}
           </button>
           {onClose && (
-            <button
-              onClick={onClose}
-              className="btn-icon md:hidden"
-              title="Close menu"
-              aria-label="Close menu"
-            >
-              <X size={15} />
+            <button onClick={onClose} className="btn-icon !w-7 !h-7 md:hidden" title="Close menu" aria-label="Close menu">
+              <X size={13} />
             </button>
           )}
         </div>
       </div>
 
-      {/* ── Folders list ── */}
-      <div className="flex-1 flex flex-col gap-3 overflow-hidden px-4 py-4">
-        <div className="flex items-center justify-between px-2">
-          <h3 className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.14em]">
+      {/* ══ Folders ══ */}
+      <div className="flex-1 flex flex-col gap-2 overflow-hidden px-2.5 pt-3.5 pb-2">
+        <div className="flex items-center justify-between pl-1.5">
+          <h3 className="mono text-[9.5px] font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--text-faint)" }}>
             Folders
           </h3>
-          <div className="flex items-center gap-1.5">
-            <button onClick={handleDeleteFolder} className="btn-icon !w-7 !h-7 hover:!text-red-500" title="Delete Folder">
-              <Trash2 size={13} />
+          <div className="flex items-center gap-1">
+            <button
+              onClick={handleDeleteFolder}
+              className="btn-icon !w-6.5 !h-6.5 hover:!text-red-500"
+              style={{ width: 26, height: 26 }}
+              title="Delete Folder"
+              aria-label="Delete folder"
+            >
+              <Trash2 size={12} />
             </button>
-            <button onClick={handleAddFolder} className="btn-icon !w-7 !h-7 hover:!text-blue-500" title="Add Folder">
-              <FolderPlus size={14} />
+            <button
+              onClick={handleAddFolder}
+              className="btn-icon"
+              style={{ width: 26, height: 26 }}
+              title="Add Folder"
+              aria-label="Add folder"
+            >
+              <FolderPlus size={12.5} />
             </button>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto space-y-1 -mr-1 pr-1">
+        <div className="flex-1 overflow-y-auto space-y-0.5 pl-2 pr-0.5 -mr-1">
           {folders.map((folder) => {
             const isActive = currentCategory === folder.name;
+            const count = (vaultData[folder.name] || []).length;
             return (
               <button
                 key={folder.id}
                 onClick={() => handleSelect(folder.name)}
-                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-sm transition-all duration-200 flex items-center gap-2.5 ${
-                  isActive
-                    ? "bg-white/65 dark:bg-white/12 text-slate-900 dark:text-white font-semibold border border-white/50 dark:border-white/15 shadow-sm"
-                    : "text-slate-600 dark:text-slate-300 hover:bg-white/35 dark:hover:bg-white/6 font-medium border border-transparent"
-                }`}
+                data-active={isActive}
+                className="nav-item"
+                title={folder.name}
               >
-                {/* Active blue checkmark */}
                 <span
-                  className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center transition-all duration-200 ${
-                    isActive
-                      ? "bg-[#0070eb] shadow-[0_2px_8px_rgba(0,112,235,0.4)]"
-                      : "bg-white/30 dark:bg-white/8 border border-white/30 dark:border-white/10"
-                  }`}
+                  className="shrink-0 w-1.5 h-1.5 rounded-full"
+                  style={{ background: isActive ? "var(--accent)" : "var(--line-2)" }}
+                />
+                <span className="truncate flex-1">{folder.name}</span>
+                <span
+                  className="mono text-[10px] tabular-nums"
+                  style={{ color: isActive ? "var(--accent)" : "var(--text-faint)" }}
                 >
-                  {isActive && (
-                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                      <path d="M2 5.2l2 2 4-4" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  )}
+                  {count}
                 </span>
-                <span className="truncate">{folder.name}</span>
               </button>
             );
           })}
+
           {folders.length === 0 && (
-            <p className="text-xs text-slate-400 dark:text-slate-500 italic px-4 py-2">No folders yet.</p>
+            <p className="text-[12px] leading-relaxed px-2.5 py-4" style={{ color: "var(--text-faint)" }}>
+              No folders yet. Use the + button to create one.
+            </p>
           )}
         </div>
       </div>
 
-      {/* ── Sign out ── */}
-      <div className="px-4 pb-5 pt-3 border-t border-white/20 dark:border-white/8">
+      {/* ══ Footer ══ */}
+      <div className="px-2.5 pt-2.5 pb-2.5 hairline-t space-y-2">
+        {user?.email && (
+          <div className="flex items-center gap-2 px-2 py-1.5">
+            <span
+              className="w-6 h-6 rounded-[7px] shrink-0 flex items-center justify-center mono text-[10px] font-semibold uppercase"
+              style={{ background: "var(--sunken)", border: "1px solid var(--line)", color: "var(--text-dim)" }}
+            >
+              {user.email.charAt(0)}
+            </span>
+            <p className="mono text-[10.5px] truncate flex-1" style={{ color: "var(--text-faint)" }}>
+              {user.email}
+            </p>
+          </div>
+        )}
+
         <button
           onClick={() => supabase.auth.signOut()}
-          className="btn-glass w-full flex items-center justify-center gap-2 py-2.5 text-sm"
+          className="btn-glass w-full py-2 text-[12.5px]"
         >
-          <LogOut size={14} />
-          Sign Out
+          <LogOut size={12.5} />
+          Sign out
         </button>
       </div>
     </div>

@@ -5,21 +5,21 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mail, KeyRound, ArrowLeft } from "lucide-react";
+import { Mail, KeyRound, ArrowLeft, AlertCircle, CheckCircle2 } from "lucide-react";
 import { sendPasswordEmail } from "@/app/actions/email";
 import { isAllowedEmail } from "@/lib/allowedEmails";
 
 const Spinner = () => (
-  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+  <svg className="animate-spin h-3.5 w-3.5 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
   </svg>
 );
 
 const slide = {
-  enter:  { x: 40, opacity: 0 },
+  enter:  { x: 24, opacity: 0 },
   center: { x: 0,  opacity: 1 },
-  exit:   { x: -40, opacity: 0 },
+  exit:   { x: -24, opacity: 0 },
 };
 
 export default function LoginPage() {
@@ -106,143 +106,267 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex-1 flex items-center justify-center p-4 min-h-screen">
+    <div className="flex-1 flex items-center justify-center p-5 min-h-screen">
       <motion.div
-        initial={{ opacity: 0, scale: 0.94, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: [0.34, 1.26, 0.64, 1] }}
-        className="glass-heavy rounded-[2.5rem] w-full max-w-[400px] p-8 flex flex-col gap-6 relative overflow-hidden"
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        className="w-full max-w-[400px]"
       >
-        {/* Inner top glow */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-32 bg-blue-400/15 dark:bg-blue-500/12 blur-3xl rounded-full pointer-events-none" />
-
-        {/* Icon + title */}
-        <div className="flex flex-col items-center text-center gap-2 relative z-10">
-          <div className="w-16 h-16 mb-1 rounded-2xl p-2 glass flex items-center justify-center shadow-[0_6px_24px_rgba(0,112,235,0.25)] border border-white/40 dark:border-white/15">
+        {/* ── Mark ── */}
+        <div className="flex flex-col items-center text-center gap-3.5 mb-8">
+          <div
+            className="w-11 h-11 rounded-xl flex items-center justify-center p-2"
+            style={{ background: "var(--sunken)", border: "1px solid var(--line)" }}
+          >
             <Image
               src="/logo_2.png"
               alt="Credentials Vault Logo"
-              width={48}
-              height={48}
+              width={44}
+              height={44}
               priority
-              className="w-full h-full object-contain drop-shadow"
+              className="w-full h-full object-contain"
             />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-800 dark:text-white">Credentials Vault</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">Secure your digital life</p>
+          <div>
+            <h1 className="text-[21px] font-semibold tracking-tight leading-none" style={{ color: "var(--text)" }}>
+              Credentials Vault
+            </h1>
+            <p className="mono text-[10.5px] uppercase tracking-[0.14em] mt-2.5" style={{ color: "var(--text-faint)" }}>
+              Restricted Access
+            </p>
+          </div>
         </div>
 
-        {/* Alerts */}
-        <AnimatePresence mode="wait">
-          {error && (
-            <motion.div key="err" initial={{ opacity:0,y:-8 }} animate={{ opacity:1,y:0 }} exit={{ opacity:0 }}
-              className="glass rounded-2xl px-4 py-3 text-sm text-red-600 dark:text-red-400 text-center border border-red-300/30 bg-red-50/30 dark:bg-red-900/15 relative z-10">
-              {error}
-            </motion.div>
-          )}
-          {message && !error && (
-            <motion.div key="msg" initial={{ opacity:0,y:-8 }} animate={{ opacity:1,y:0 }} exit={{ opacity:0 }}
-              className="glass rounded-2xl px-4 py-3 text-sm text-blue-600 dark:text-blue-400 text-center border border-blue-300/30 bg-blue-50/30 dark:bg-blue-900/15 relative z-10">
-              {message}
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* ── Card ── */}
+        <div className="glass-heavy rounded-2xl p-6">
+          {/* Segmented control */}
+          <div
+            className="flex p-0.5 rounded-[11px] mb-6"
+            style={{ background: "var(--sunken)", border: "1px solid var(--line)" }}
+          >
+            {([
+              { key: "standard",  label: "Password" },
+              { key: "otp-email", label: "Email code" },
+            ] as const).map((tab) => {
+              const active = tab.key === "standard" ? mode === "standard" : mode !== "standard";
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => { reset(); setMode(tab.key); }}
+                  className="relative flex-1 py-1.5 text-[12.5px] font-medium rounded-[9px] transition-colors"
+                  style={{ color: active ? "var(--text)" : "var(--text-faint)" }}
+                >
+                  {active && (
+                    <motion.span
+                      layoutId="login-tab"
+                      transition={{ type: "spring", stiffness: 460, damping: 36 }}
+                      className="absolute inset-0 rounded-[9px]"
+                      style={{ background: "var(--surface-solid)", border: "1px solid var(--line)", boxShadow: "var(--shadow-sm)" }}
+                    />
+                  )}
+                  <span className="relative z-10">{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
 
-        {/* Forms */}
-        <div className="relative z-10 h-[270px]">
+          {/* Alerts */}
           <AnimatePresence mode="wait">
-            {/* Standard login */}
-            {mode === "standard" && (
-              <motion.form key="std" variants={slide} initial="enter" animate="center" exit="exit"
-                transition={{ duration: 0.28 }} onSubmit={handleStandardLogin} className="flex flex-col gap-4 h-full">
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300 ml-1">Email</span>
-                  <div className="relative">
-                    <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input type="email" required value={email} onChange={e=>setEmail(e.target.value)}
-                      placeholder="you@example.com"
-                      className="glass-input w-full pl-10 pr-4 py-3 rounded-2xl text-sm text-slate-800 dark:text-white" />
-                  </div>
-                </label>
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300 ml-1">Password</span>
-                  <div className="relative">
-                    <KeyRound size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input type="password" required value={password} onChange={e=>setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="glass-input w-full pl-10 pr-4 py-3 rounded-2xl text-sm text-slate-800 dark:text-white" />
-                  </div>
-                </label>
-                <button type="submit" disabled={loading}
-                  className="btn-primary py-3 text-sm flex items-center justify-center mt-1 disabled:opacity-50">
-                  {loading && <Spinner />}{loading ? "Authenticating…" : "Sign In"}
-                </button>
-                <div className="flex justify-between items-center mt-auto pt-1">
-                  <button type="button" onClick={() => { reset(); setMode("otp-email"); }}
-                    className="text-sm text-[#0070eb] hover:opacity-75 transition-opacity font-medium">
-                    Login with OTP
-                  </button>
-                  <button type="button" onClick={handleForgotPassword} disabled={loading}
-                    className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors">
-                    Forgot Password?
-                  </button>
+            {error && (
+              <motion.div
+                key="err"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden"
+              >
+                <div
+                  className="flex items-start gap-2 rounded-[10px] px-3 py-2.5 mb-5 text-[12.5px] leading-snug"
+                  style={{ color: "var(--danger)", background: "var(--danger-soft)", border: "1px solid var(--danger-line)" }}
+                >
+                  <AlertCircle size={14} className="mt-px shrink-0" />
+                  <span>{error}</span>
                 </div>
-              </motion.form>
+              </motion.div>
             )}
-
-            {/* OTP email */}
-            {mode === "otp-email" && (
-              <motion.form key="otp-e" variants={slide} initial="enter" animate="center" exit="exit"
-                transition={{ duration: 0.28 }} onSubmit={handleSendOTP} className="flex flex-col gap-4 h-full">
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300 ml-1">Email for OTP</span>
-                  <div className="relative">
-                    <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input type="email" required value={email} onChange={e=>setEmail(e.target.value)}
-                      placeholder="you@example.com"
-                      className="glass-input w-full pl-10 pr-4 py-3 rounded-2xl text-sm text-slate-800 dark:text-white" />
-                  </div>
-                </label>
-                <button type="submit" disabled={loading}
-                  className="btn-primary py-3 text-sm flex items-center justify-center mt-1 disabled:opacity-50">
-                  {loading && <Spinner />}{loading ? "Sending…" : "Send OTP"}
-                </button>
-                <div className="mt-auto pt-1">
-                  <button type="button" onClick={() => { reset(); setMode("standard"); }}
-                    className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors">
-                    <ArrowLeft size={14} /> Back to Password Login
-                  </button>
+            {message && !error && (
+              <motion.div
+                key="msg"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden"
+              >
+                <div
+                  className="flex items-start gap-2 rounded-[10px] px-3 py-2.5 mb-5 text-[12.5px] leading-snug"
+                  style={{ color: "var(--success)", background: "var(--success-soft)", border: "1px solid var(--line)" }}
+                >
+                  <CheckCircle2 size={14} className="mt-px shrink-0" />
+                  <span>{message}</span>
                 </div>
-              </motion.form>
-            )}
-
-            {/* OTP code */}
-            {mode === "otp-code" && (
-              <motion.form key="otp-c" variants={slide} initial="enter" animate="center" exit="exit"
-                transition={{ duration: 0.28 }} onSubmit={handleVerifyOTP} className="flex flex-col gap-4 h-full">
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300 ml-1">6-digit Code</span>
-                  <input type="text" required maxLength={6} value={otpCode}
-                    onChange={e=>setOtpCode(e.target.value)}
-                    placeholder="••••••"
-                    className="glass-input w-full px-4 py-3 rounded-2xl text-sm text-center tracking-[0.5em] text-lg text-slate-800 dark:text-white" />
-                </label>
-                <button type="submit" disabled={loading || otpCode.length < 6}
-                  className="btn-primary py-3 text-sm flex items-center justify-center mt-1 disabled:opacity-50"
-                  style={{ background: loading || otpCode.length < 6 ? undefined : "#34c759",
-                           boxShadow: "0 4px 20px rgba(52,199,89,0.4)" }}>
-                  {loading && <Spinner />}{loading ? "Verifying…" : "Verify OTP"}
-                </button>
-                <div className="mt-auto pt-1">
-                  <button type="button" onClick={() => { reset(); setMode("otp-email"); }}
-                    className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors">
-                    <ArrowLeft size={14} /> Change Email
-                  </button>
-                </div>
-              </motion.form>
+              </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Forms */}
+          <div className="min-h-[236px]">
+            <AnimatePresence mode="wait">
+              {/* ── Password login ── */}
+              {mode === "standard" && (
+                <motion.form
+                  key="std"
+                  variants={slide} initial="enter" animate="center" exit="exit"
+                  transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                  onSubmit={handleStandardLogin}
+                  className="flex flex-col gap-4"
+                >
+                  <label className="flex flex-col gap-2">
+                    <span className="field-label ml-0.5">Email</span>
+                    <div className="relative">
+                      <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--text-faint)" }} />
+                      <input
+                        type="email" required autoComplete="email"
+                        value={email} onChange={(e) => setEmail(e.target.value)}
+                        placeholder="you@example.com"
+                        className="glass-input w-full pl-9 pr-3.5 py-2.5 text-[13.5px]"
+                      />
+                    </div>
+                  </label>
+
+                  <label className="flex flex-col gap-2">
+                    <span className="field-label ml-0.5">Master password</span>
+                    <div className="relative">
+                      <KeyRound size={14} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--text-faint)" }} />
+                      <input
+                        type="password" required autoComplete="current-password"
+                        value={password} onChange={(e) => setPassword(e.target.value)}
+                        placeholder="••••••••••"
+                        className="glass-input w-full pl-9 pr-3.5 py-2.5 text-[13.5px]"
+                      />
+                    </div>
+                  </label>
+
+                  <button type="submit" disabled={loading} className="btn-primary w-full py-2.5 text-[13.5px] mt-1">
+                    {loading && <Spinner />}
+                    {loading ? "Authenticating" : "Unlock vault"}
+                  </button>
+
+                  <div className="flex items-center justify-between pt-0.5">
+                    <button
+                      type="button"
+                      onClick={() => { reset(); setMode("otp-email"); }}
+                      className="text-[12.5px] font-medium transition-opacity hover:opacity-70"
+                      style={{ color: "var(--accent)" }}
+                    >
+                      Use one-time code
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleForgotPassword}
+                      disabled={loading}
+                      className="text-[12.5px] transition-opacity hover:opacity-70 disabled:opacity-40"
+                      style={{ color: "var(--text-faint)" }}
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
+                </motion.form>
+              )}
+
+              {/* ── OTP: email ── */}
+              {mode === "otp-email" && (
+                <motion.form
+                  key="otp-e"
+                  variants={slide} initial="enter" animate="center" exit="exit"
+                  transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                  onSubmit={handleSendOTP}
+                  className="flex flex-col gap-4"
+                >
+                  <p className="text-[12.5px] leading-relaxed" style={{ color: "var(--text-dim)" }}>
+                    We&apos;ll email you a six-digit code. No password needed.
+                  </p>
+
+                  <label className="flex flex-col gap-2">
+                    <span className="field-label ml-0.5">Email</span>
+                    <div className="relative">
+                      <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--text-faint)" }} />
+                      <input
+                        type="email" required autoComplete="email"
+                        value={email} onChange={(e) => setEmail(e.target.value)}
+                        placeholder="you@example.com"
+                        className="glass-input w-full pl-9 pr-3.5 py-2.5 text-[13.5px]"
+                      />
+                    </div>
+                  </label>
+
+                  <button type="submit" disabled={loading} className="btn-primary w-full py-2.5 text-[13.5px] mt-1">
+                    {loading && <Spinner />}
+                    {loading ? "Sending" : "Send code"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => { reset(); setMode("standard"); }}
+                    className="flex items-center gap-1.5 text-[12.5px] transition-opacity hover:opacity-70"
+                    style={{ color: "var(--text-faint)" }}
+                  >
+                    <ArrowLeft size={13} /> Back to password login
+                  </button>
+                </motion.form>
+              )}
+
+              {/* ── OTP: code ── */}
+              {mode === "otp-code" && (
+                <motion.form
+                  key="otp-c"
+                  variants={slide} initial="enter" animate="center" exit="exit"
+                  transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                  onSubmit={handleVerifyOTP}
+                  className="flex flex-col gap-4"
+                >
+                  <p className="text-[12.5px] leading-relaxed" style={{ color: "var(--text-dim)" }}>
+                    Code sent to <span className="mono" style={{ color: "var(--text)" }}>{email}</span>
+                  </p>
+
+                  <label className="flex flex-col gap-2">
+                    <span className="field-label ml-0.5">Verification code</span>
+                    <input
+                      type="text" required maxLength={6} inputMode="numeric" autoComplete="one-time-code"
+                      value={otpCode} onChange={(e) => setOtpCode(e.target.value)}
+                      placeholder="000000"
+                      className="glass-input mono w-full px-4 py-3 text-center text-lg tracking-[0.5em]"
+                    />
+                  </label>
+
+                  <button
+                    type="submit"
+                    disabled={loading || otpCode.length < 6}
+                    className="btn-primary w-full py-2.5 text-[13.5px] mt-1"
+                  >
+                    {loading && <Spinner />}
+                    {loading ? "Verifying" : "Verify & enter"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => { reset(); setMode("otp-email"); }}
+                    className="flex items-center gap-1.5 text-[12.5px] transition-opacity hover:opacity-70"
+                    style={{ color: "var(--text-faint)" }}
+                  >
+                    <ArrowLeft size={13} /> Change email
+                  </button>
+                </motion.form>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
+
+        {/* ── Footer ── */}
+        <p className="mono text-center text-[10px] uppercase tracking-[0.13em] mt-6" style={{ color: "var(--text-faint)" }}>
+          AES encrypted · approved accounts only
+        </p>
       </motion.div>
     </div>
   );
