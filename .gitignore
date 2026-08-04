@@ -44,3 +44,4 @@ next-env.d.ts
 stitch_ios_26_glassy_interface/
 Design Idea/
 .aider*
+.roo/mcp.json
