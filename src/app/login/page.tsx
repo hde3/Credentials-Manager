@@ -27,6 +27,7 @@ type Mode = "password" | "otp-send" | "otp-verify" | "recover";
 
 export default function LoginPage() {
   const [mode, setMode]           = useState<Mode>("password");
+  const [loginEmail, setLoginEmail] = useState("");
   const [password, setPassword]   = useState("");
   const [otpCode, setOtpCode]     = useState("");
   const [otpEmail, setOtpEmail]   = useState<string>(OTP_RECIPIENT_EMAILS[0] || "");
@@ -40,9 +41,15 @@ export default function LoginPage() {
 
   const go = (next: Mode) => { reset(); setMode(next); };
 
-  /* ── Password login — always the one vault account ── */
+  /* ── Password login — verify email + password against vault account ── */
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault(); setLoading(true); reset();
+    const email = loginEmail.trim().toLowerCase();
+    if (email !== VAULT_ACCOUNT_EMAIL) {
+      setError("Invalid email or password.");
+      setLoading(false);
+      return;
+    }
     try {
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: VAULT_ACCOUNT_EMAIL,
@@ -247,8 +254,18 @@ export default function LoginPage() {
                   onSubmit={handlePasswordLogin}
                   className="flex flex-col gap-4"
                 >
-                  {/* Hidden input for browser autocomplete */}
-                  <input type="email" hidden autoComplete="username" value={VAULT_ACCOUNT_EMAIL} readOnly />
+                  <label className="flex flex-col gap-2">
+                    <span className="field-label ml-0.5">Email</span>
+                    <div className="relative">
+                      <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--text-faint)" }} />
+                      <input
+                        type="email" required autoFocus autoComplete="username"
+                        value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)}
+                        placeholder="Enter your email"
+                        className="glass-input w-full pl-9 pr-3.5 py-2.5 text-[13.5px]"
+                      />
+                    </div>
+                  </label>
 
                   <label className="flex flex-col gap-2">
                     <span className="field-label ml-0.5">Master password</span>
