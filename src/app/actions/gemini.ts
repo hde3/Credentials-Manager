@@ -15,12 +15,8 @@ async function requireAuthorisedUser(accessToken?: string) {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
   if (!supabaseUrl || !supabaseAnonKey) throw new Error("Supabase is not configured.");
 
-  const client = createClient(supabaseUrl, supabaseAnonKey, {
-    global: {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    },
-  });
-  const { data, error } = await client.auth.getUser();
+  const client = createClient(supabaseUrl, supabaseAnonKey);
+  const { data, error } = await client.auth.getUser(accessToken);
 
   if (error || !data.user) throw new Error("Not authenticated.");
   if (!isAllowedEmail(data.user.email)) throw new Error("Access denied.");
