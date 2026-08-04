@@ -1,6 +1,36 @@
 "use server";
 
-export async function processGeminiCommand(prompt: string, vaultContextStr: string) {
+import { createClient } from "@supabase/supabase-js";
+import { isAllowedEmail } from "@/lib/allowedEmails";
+
+/**
+ * Server Actions are public endpoints. Without this guard anyone could call
+ * the action and burn the Gemini quota, so we verify the caller's Supabase
+ * access token before doing any work.
+ */
+async function requireAuthorisedUser(accessToken?: string) {
+  if (!accessToken) throw new Error("Not authenticated.");
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+  if (!supabaseUrl || !supabaseAnonKey) throw new Error("Supabase is not configured.");
+
+  const client = createClient(supabaseUrl, supabaseAnonKey);
+  const { data, error } = await client.auth.getUser(accessToken);
+
+  if (error || !data.user) throw new Error("Not authenticated.");
+  if (!isAllowedEmail(data.user.email)) throw new Error("Access denied.");
+
+  return data.user;
+}
+
+export async function processGeminiCommand(
+  prompt: string,
+  vaultContextStr: string,
+  accessToken?: string
+) {
+  await requireAuthorisedUser(accessToken);
+
   const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
   if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not configured.");
 
@@ -41,7 +71,11 @@ ${vaultContextStr}`;
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: systemInstruction }] },
           contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.1, maxOutputTokens: 512 },
+          generationConfig: {
+            temperature: 0.1,
+            maxOutputTokens: 512,
+            responseMimeType: "application/json",
+          },
         }),
       }
     );
@@ -52,7 +86,10 @@ ${vaultContextStr}`;
     }
 
     const data = await response.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
+    const text: string = data.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
+
+    // Belt-and-braces: strip markdown fences even though we asked for raw JSON.
+    return text.replace(/```json/gi, "").replace(/```/g, "").trim() || "[]";
   } catch (err: unknown) {
     const e = err as Error;
     console.error("Gemini Error:", e);

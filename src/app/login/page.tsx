@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import { motion, AnimatePresence } from "framer-motion";
-import { Lock, Mail, KeyRound, ArrowLeft } from "lucide-react";
+import { Mail, KeyRound, ArrowLeft } from "lucide-react";
 import { sendPasswordEmail } from "@/app/actions/email";
-
-const ALLOWED_EMAILS = ['manag00400@gmail.com', 'agarg1473@gmail.com', 'happypandey2387@gmail.com'];
+import { isAllowedEmail } from "@/lib/allowedEmails";
 
 const Spinner = () => (
   <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -36,25 +36,25 @@ export default function LoginPage() {
 
   const handleStandardLogin = async (e: React.FormEvent) => {
     e.preventDefault(); setLoading(true); reset();
-    if (email !== "manag00400@gmail.com" || password !== "#Credentials98329") {
-      setError("Unauthorized. Invalid credentials.");
+
+    // UX-level check only — real enforcement is Supabase auth + RLS.
+    if (!isAllowedEmail(email)) {
+      setError("Access Denied: this email is not authorized.");
       setLoading(false); return;
     }
+
     try {
-      const { error: err1 } = await supabase.auth.signInWithPassword({ email, password });
-      if (err1?.message.includes("Invalid login")) {
-        const { error: err2 } = await supabase.auth.signUp({ email, password });
-        if (err2) throw err2;
-      } else if (err1) throw err1;
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      if (signInError) throw signInError;
       router.push("/");
     } catch (err: unknown) {
-      setError((err as Error).message || "An error occurred.");
+      setError((err as Error).message || "Invalid credentials.");
     } finally { setLoading(false); }
   };
 
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault(); setLoading(true); reset();
-    if (!ALLOWED_EMAILS.includes(email.toLowerCase())) {
+    if (!isAllowedEmail(email)) {
       setError("Access Denied: this email is not authorized.");
       setLoading(false); return;
     }
@@ -84,7 +84,7 @@ export default function LoginPage() {
       setError("Please enter your email in the email field first.");
       return;
     }
-    if (!ALLOWED_EMAILS.includes(email.toLowerCase())) {
+    if (!isAllowedEmail(email)) {
       setError("Access Denied: this email is not authorized.");
       return;
     }
@@ -94,12 +94,14 @@ export default function LoginPage() {
       if (result.success) {
         setMessage("Check your email!");
       } else {
+        setMessage("");
         setError(result.error || "Failed to send email.");
       }
-    } catch { 
-      setError("An error occurred."); 
-    } finally { 
-      setLoading(false); 
+    } catch {
+      setMessage("");
+      setError("An error occurred.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -117,7 +119,14 @@ export default function LoginPage() {
         {/* Icon + title */}
         <div className="flex flex-col items-center text-center gap-2 relative z-10">
           <div className="w-16 h-16 mb-1 rounded-2xl p-2 glass flex items-center justify-center shadow-[0_6px_24px_rgba(0,112,235,0.25)] border border-white/40 dark:border-white/15">
-            <img src="/logo_2.png" alt="Credentials Vault Logo" className="w-full h-full object-contain drop-shadow" />
+            <Image
+              src="/logo_2.png"
+              alt="Credentials Vault Logo"
+              width={48}
+              height={48}
+              priority
+              className="w-full h-full object-contain drop-shadow"
+            />
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-800 dark:text-white">Credentials Vault</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400">Secure your digital life</p>

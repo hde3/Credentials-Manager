@@ -1,11 +1,19 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { useVault } from "@/context/VaultContext";
-import { FolderPlus, Trash2, LogOut, Sun, Moon } from "lucide-react";
+import { FolderPlus, Trash2, LogOut, Sun, Moon, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
-export default function Sidebar() {
+type SidebarProps = {
+  /** Called after a folder is picked — used to auto-close the mobile drawer. */
+  onNavigate?: () => void;
+  /** Renders a close button (mobile drawer only). */
+  onClose?: () => void;
+};
+
+export default function Sidebar({ onNavigate, onClose }: SidebarProps) {
   const { folders, currentCategory, setCurrentCategory, addFolder, deleteFolder } = useVault();
   const [theme, setTheme] = useState("dark");
 
@@ -49,12 +57,23 @@ export default function Sidebar() {
     }
   };
 
+  const handleSelect = (name: string) => {
+    setCurrentCategory(name);
+    onNavigate?.();
+  };
+
   return (
     <div className="glass rounded-[2rem] h-full flex flex-col overflow-hidden">
       {/* ── Header ── */}
       <div className="px-6 py-5 flex items-center justify-between border-b border-white/20 dark:border-white/8">
         <div className="flex items-center gap-3">
-          <img src="/logo_2.png" alt="Logo" className="w-9 h-9 object-contain rounded-lg" />
+          <Image
+            src="/logo_2.png"
+            alt="Logo"
+            width={36}
+            height={36}
+            className="w-9 h-9 object-contain rounded-lg"
+          />
           <div>
             <p className="text-[10px] font-semibold tracking-[0.15em] uppercase text-slate-500 dark:text-slate-400 mb-0.5">
               Beautiful Organizer
@@ -64,14 +83,26 @@ export default function Sidebar() {
             </h2>
           </div>
         </div>
-        <button
-          onClick={toggleTheme}
-          className="btn-icon"
-          title="Toggle Theme"
-          aria-label="Toggle theme"
-        >
-          {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={toggleTheme}
+            className="btn-icon"
+            title="Toggle Theme"
+            aria-label="Toggle theme"
+          >
+            {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+          </button>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="btn-icon md:hidden"
+              title="Close menu"
+              aria-label="Close menu"
+            >
+              <X size={15} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ── Folders list ── */}
@@ -96,7 +127,7 @@ export default function Sidebar() {
             return (
               <button
                 key={folder.id}
-                onClick={() => setCurrentCategory(folder.name)}
+                onClick={() => handleSelect(folder.name)}
                 className={`w-full text-left px-3.5 py-2.5 rounded-xl text-sm transition-all duration-200 flex items-center gap-2.5 ${
                   isActive
                     ? "bg-white/65 dark:bg-white/12 text-slate-900 dark:text-white font-semibold border border-white/50 dark:border-white/15 shadow-sm"

@@ -14,10 +14,17 @@ export default function DashboardLayout() {
   const { user, authLoading, isLoaded, currentCategory } = useVault();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) router.push("/login");
   }, [user, authLoading, router]);
+
+  // Lock body scroll while the mobile drawer is open.
+  useEffect(() => {
+    document.body.style.overflow = mobileNavOpen ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [mobileNavOpen]);
 
   if (authLoading || !isLoaded) {
     return (
@@ -35,7 +42,7 @@ export default function DashboardLayout() {
 
   return (
     <div className="flex-1 flex w-full p-3 md:p-5 gap-4 md:gap-5 overflow-hidden h-screen">
-      {/* ── Sidebar ── */}
+      {/* ── Sidebar (desktop) ── */}
       <AnimatePresence initial={false}>
         {sidebarOpen && (
           <motion.div
@@ -49,6 +56,35 @@ export default function DashboardLayout() {
             <div className="w-[272px] h-full">
               <Sidebar />
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Sidebar (mobile drawer) ── */}
+      <AnimatePresence>
+        {mobileNavOpen && (
+          <motion.div
+            key="mobile-nav"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-40 md:hidden"
+            style={{ backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", background: "rgba(0,0,0,0.22)" }}
+            onClick={() => setMobileNavOpen(false)}
+          >
+            <motion.div
+              initial={{ x: -300, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -300, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 320, damping: 32 }}
+              className="h-full w-[272px] max-w-[85vw] p-3"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Sidebar
+                onNavigate={() => setMobileNavOpen(false)}
+                onClose={() => setMobileNavOpen(false)}
+              />
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -67,6 +103,14 @@ export default function DashboardLayout() {
           </button>
 
           <div className="flex md:hidden items-center gap-2">
+            <button
+              onClick={() => setMobileNavOpen(true)}
+              className="btn-icon"
+              title="Open menu"
+              aria-label="Open menu"
+            >
+              <Menu size={16} />
+            </button>
             <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Vault</h1>
           </div>
 

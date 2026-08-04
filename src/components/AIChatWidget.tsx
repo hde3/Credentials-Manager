@@ -5,6 +5,7 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Send } from "lucide-react";
 import { processGeminiCommand } from "@/app/actions/gemini";
+import { supabase } from "@/lib/supabase";
 
 type Message = { id: string; text: string; sender: "user" | "system" | "assistant" };
 
@@ -27,7 +28,7 @@ export default function AIChatWidget() {
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
   const pushMsg = (text: string, sender: Message["sender"]) =>
-    setMessages(prev => [...prev, { id: Date.now().toString(), text, sender }]);
+    setMessages(prev => [...prev, { id: `${Date.now()}-${Math.random()}`, text, sender }]);
 
   const resolveFolder = (name: string) =>
     folders.find(f => f.name.toLowerCase() === name?.toLowerCase())?.name ?? name;
@@ -47,7 +48,16 @@ export default function AIChatWidget() {
         ctx[f.name] = (vaultData[f.name] || []).map(c => ({ loginId: c.login_id }));
       });
 
-      const raw = await processGeminiCommand(userMsg, JSON.stringify(ctx, null, 2));
+      /* The server action verifies this token before spending Gemini quota. */
+      const { data: { session } } = await supabase.auth.getSession();
+      const accessToken = session?.access_token;
+      if (!accessToken) {
+        pushMsg("Your session has expired. Please sign in again.", "assistant");
+        setLoading(false);
+        return;
+      }
+
+      const raw = await processGeminiCommand(userMsg, JSON.stringify(ctx, null, 2), accessToken);
 
       /* Parse JSON — extract JSON array or object even if conversational text surrounds it */
       let cleaned = raw.trim();
@@ -83,16 +93,17 @@ export default function AIChatWidget() {
           case "ADD_CREDENTIAL": {
             const fName = resolveFolder(a.folder);
             let targetFolder = folders.find(f => f.name === fName);
+
+            /* addFolder now returns the created row, so there's no race and
+               no need to ask the user to repeat the command. */
             if (!targetFolder) {
-              await addFolder(fName);
-              /* After addFolder, VaultContext refreshes; but we need the new folder ID.
-                 Tell the user to repeat — safest without a race condition. */
-              replies.push(`Created folder "${fName}". Please repeat the add command.`);
-              break;
+              targetFolder = await addFolder(fName);
+              replies.push(`Created folder "${targetFolder.name}".`);
             }
+
             await addCredential(targetFolder.id, a.loginId || "unknown", a.password || "unknown");
-            setCurrentCategory(fName);
-            replies.push(`Added ${a.loginId} to ${fName}.`);
+            setCurrentCategory(targetFolder.name);
+            replies.push(`Added ${a.loginId} to ${targetFolder.name}.`);
             break;
           }
 
@@ -118,8 +129,8 @@ export default function AIChatWidget() {
           }
 
           case "CREATE_FOLDER": {
-            await addFolder(a.folder);
-            replies.push(`Created folder: ${a.folder}`);
+            const created = await addFolder(a.folder);
+            replies.push(`Created folder: ${created.name}`);
             break;
           }
 
@@ -186,7 +197,7 @@ export default function AIChatWidget() {
               {messages.map(msg => (
                 <div
                   key={msg.id}
-                  className={`max-w-[86%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${
+                  className={`max-w-[86%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-line ${
                     msg.sender === "user"
                       ? "btn-primary self-end rounded-br-sm text-white px-4"
                       : msg.sender === "system"

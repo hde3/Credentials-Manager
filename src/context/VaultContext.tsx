@@ -31,7 +31,7 @@ type VaultContextType = {
   folders: Folder[];
   currentCategory: string;
   setCurrentCategory: (category: string) => void;
-  addFolder: (folderName: string) => Promise<void>;
+  addFolder: (folderName: string) => Promise<Folder>;
   deleteFolder: (folderId: string, folderName: string) => Promise<void>;
   renameFolder: (folderId: string, newName: string) => Promise<void>;
   addCredential: (folderId: string, loginId: string, password: string) => Promise<void>;
@@ -68,6 +68,11 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  /**
+   * NOTE: `currentCategory` is deliberately NOT a dependency here.
+   * Reading it via the functional form of setState keeps this callback stable,
+   * so switching folders no longer triggers a full re-fetch of the vault.
+   */
   const refreshData = useCallback(async () => {
     if (!user) {
       setFolders([]);
@@ -77,136 +82,149 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      // Fetch folders
-      const { data: foldersData, error: foldersError } = await supabase
-        .from("folders")
-        .select("*")
-        .order("name");
-        
-      if (foldersError) throw foldersError;
+      const [foldersRes, credsRes] = await Promise.all([
+        supabase.from("folders").select("*").eq("user_id", user.id).order("name"),
+        supabase.from("credentials").select("*").eq("user_id", user.id),
+      ]);
 
-      // Fetch credentials
-      const { data: credsData, error: credsError } = await supabase
-        .from("credentials")
-        .select("*");
-        
-      if (credsError) throw credsError;
+      if (foldersRes.error) throw foldersRes.error;
+      if (credsRes.error) throw credsRes.error;
 
-      const newFolders = foldersData || [];
+      const newFolders: Folder[] = foldersRes.data ?? [];
+      const allCreds: Credential[] = credsRes.data ?? [];
+
       setFolders(newFolders);
 
       // Build vault map
       const newVaultData: VaultData = {};
-      newFolders.forEach(f => {
-        newVaultData[f.name] = credsData?.filter(c => c.folder_id === f.id) || [];
+      newFolders.forEach((f) => {
+        newVaultData[f.name] = allCreds.filter((c) => c.folder_id === f.id);
       });
-
       setVaultData(newVaultData);
 
-      if (newFolders.length > 0 && !currentCategory) {
-        setCurrentCategory(newFolders[0].name);
-      }
+      // Keep the current selection if it still exists, else fall back.
+      setCurrentCategory((prev) => {
+        if (prev && newFolders.some((f) => f.name === prev)) return prev;
+        return newFolders[0]?.name ?? "";
+      });
     } catch (err) {
       console.error("Failed to fetch vault data:", err);
     } finally {
       setIsLoaded(true);
     }
-  }, [user, currentCategory]);
+  }, [user]);
 
   useEffect(() => {
     if (!authLoading) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       refreshData();
     }
   }, [authLoading, refreshData]);
 
-  const addFolder = async (folderName: string) => {
-    if (!user) return;
-    const normalized = folderName.trim().toLowerCase();
-    if (folders.some(f => f.name.toLowerCase() === normalized)) {
+  const addFolder = useCallback(async (folderName: string): Promise<Folder> => {
+    if (!user) throw new Error("Not authenticated.");
+
+    const trimmed = folderName?.trim();
+    if (!trimmed) throw new Error("Folder name cannot be empty.");
+
+    const normalized = trimmed.toLowerCase();
+    if (folders.some((f) => f.name.toLowerCase() === normalized)) {
       throw new Error("A folder with this name already exists.");
     }
-    const { error } = await supabase
+
+    const { data, error } = await supabase
       .from("folders")
-      .insert([{ name: folderName.trim(), user_id: user.id }]);
+      .insert([{ name: trimmed, user_id: user.id }])
+      .select()
+      .single();
+
     if (error) {
       console.error(error);
       throw error;
     }
-    await refreshData();
-    setCurrentCategory(folderName.trim());
-  };
 
-  const deleteFolder = async (folderId: string, folderName: string) => {
+    await refreshData();
+    setCurrentCategory(trimmed);
+    return data as Folder;
+  }, [user, folders, refreshData]);
+
+  const deleteFolder = useCallback(async (folderId: string, _folderName: string) => {
     if (folders.length <= 1) throw new Error("Cannot delete the only folder");
+
     const { error } = await supabase.from("folders").delete().eq("id", folderId);
     if (error) {
       console.error(error);
       throw error;
     }
-    
-    if (currentCategory === folderName) {
-      const remainingFolders = folders.filter(f => f.id !== folderId);
-      setCurrentCategory(remainingFolders.length > 0 ? remainingFolders[0].name : "");
-    }
-    await refreshData();
-  };
 
-  const renameFolder = async (folderId: string, newName: string) => {
+    // refreshData() re-points currentCategory automatically if it disappeared.
+    await refreshData();
+  }, [folders, refreshData]);
+
+  const renameFolder = useCallback(async (folderId: string, newName: string) => {
     if (!user) return;
-    const normalized = newName.trim().toLowerCase();
-    const duplicate = folders.find(f => f.name.toLowerCase() === normalized);
+
+    const trimmed = newName?.trim();
+    if (!trimmed) throw new Error("Folder name cannot be empty.");
+
+    const normalized = trimmed.toLowerCase();
+    const duplicate = folders.find((f) => f.name.toLowerCase() === normalized);
     if (duplicate && duplicate.id !== folderId) {
       throw new Error("A folder with this name already exists.");
     }
+
     const { error } = await supabase
       .from("folders")
-      .update({ name: newName.trim() })
+      .update({ name: trimmed })
       .eq("id", folderId);
+
     if (error) {
       console.error(error);
       throw error;
     }
-    await refreshData();
-    setCurrentCategory(newName.trim());
-  };
 
-  const addCredential = async (folderId: string, loginId: string, password: string) => {
+    await refreshData();
+    setCurrentCategory(trimmed);
+  }, [user, folders, refreshData]);
+
+  const addCredential = useCallback(async (folderId: string, loginId: string, password: string) => {
     if (!user) return;
+
     const encryptedPassword = encryptPassword(password);
     const { error } = await supabase
       .from("credentials")
       .insert([
-        { folder_id: folderId, login_id: loginId, password: encryptedPassword, user_id: user.id }
+        { folder_id: folderId, login_id: loginId, password: encryptedPassword, user_id: user.id },
       ]);
+
     if (error) {
       console.error(error);
       throw error;
     }
     await refreshData();
-  };
+  }, [user, refreshData]);
 
-  const editCredential = async (credId: string, newLoginId: string, newPassword: string) => {
+  const editCredential = useCallback(async (credId: string, newLoginId: string, newPassword: string) => {
     const encryptedPassword = encryptPassword(newPassword);
     const { error } = await supabase
       .from("credentials")
       .update({ login_id: newLoginId, password: encryptedPassword })
       .eq("id", credId);
+
     if (error) {
       console.error(error);
       throw error;
     }
     await refreshData();
-  };
+  }, [refreshData]);
 
-  const deleteCredential = async (credId: string) => {
+  const deleteCredential = useCallback(async (credId: string) => {
     const { error } = await supabase.from("credentials").delete().eq("id", credId);
     if (error) {
       console.error(error);
       throw error;
     }
     await refreshData();
-  };
+  }, [refreshData]);
 
   const contextValue = React.useMemo(() => ({
     user,
@@ -223,7 +241,21 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     deleteCredential,
     isLoaded,
     refreshData,
-  }), [user, authLoading, vaultData, folders, currentCategory, isLoaded, refreshData]);
+  }), [
+    user,
+    authLoading,
+    vaultData,
+    folders,
+    currentCategory,
+    addFolder,
+    deleteFolder,
+    renameFolder,
+    addCredential,
+    editCredential,
+    deleteCredential,
+    isLoaded,
+    refreshData,
+  ]);
 
   return (
     <VaultContext.Provider value={contextValue}>
