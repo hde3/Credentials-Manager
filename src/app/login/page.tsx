@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mail, KeyRound, ArrowLeft, AlertCircle, CheckCircle2, Lock } from "lucide-react";
+import { Mail, KeyRound, ArrowLeft, AlertCircle, CheckCircle2, ChevronDown } from "lucide-react";
 import { sendPasswordEmail } from "@/app/actions/email";
-import { isAllowedEmail, VAULT_ACCOUNT_EMAIL } from "@/lib/allowedEmails";
+import { sendCustomOTP, verifyCustomOTP } from "@/app/actions/otp";
+import { isAllowedEmail, VAULT_ACCOUNT_EMAIL, OTP_RECIPIENT_EMAILS } from "@/lib/allowedEmails";
 
 const Spinner = () => (
   <svg className="animate-spin h-3.5 w-3.5 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -28,6 +29,7 @@ export default function LoginPage() {
   const [mode, setMode]           = useState<Mode>("password");
   const [password, setPassword]   = useState("");
   const [otpCode, setOtpCode]     = useState("");
+  const [otpEmail, setOtpEmail]   = useState<string>(OTP_RECIPIENT_EMAILS[0] || "");
   const [recoverTo, setRecoverTo] = useState("");
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState("");
@@ -53,49 +55,43 @@ export default function LoginPage() {
     } finally { setLoading(false); }
   };
 
-  /* ── Send OTP — always to the vault account's inbox ── */
+  /* ── Send OTP — to user's chosen personal email ── */
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault(); setLoading(true); reset();
     try {
-      const { error: otpError } = await supabase.auth.signInWithOtp({
-        email: VAULT_ACCOUNT_EMAIL,
-        // Never silently create a second account.
-        options: { shouldCreateUser: false },
-      });
-      if (otpError) throw otpError;
+      const result = await sendCustomOTP(otpEmail);
+      if (!result.success) {
+        setError(result.error || "Failed to send code.");
+        return;
+      }
       setOtpCode("");
       setMode("otp-verify");
-      setMessage("Code sent. Check the vault inbox.");
+      setMessage(`Code sent to ${otpEmail}`);
     } catch (err: unknown) {
       setError((err as Error).message || "Failed to send code.");
     } finally { setLoading(false); }
   };
 
-  /* ── Verify OTP ──
-     signInWithOtp sends either the "OTP" or the "Magic Link" template
-     depending on the Supabase project settings, so try both token types. */
+  /* ── Verify OTP — validates code, then signs in as vault account ── */
   const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault(); setLoading(true); reset();
     const token = otpCode.trim();
     try {
-      let res = await supabase.auth.verifyOtp({
-        email: VAULT_ACCOUNT_EMAIL,
-        token,
-        type: "email",
-      });
-
-      if (res.error) {
-        res = await supabase.auth.verifyOtp({
-          email: VAULT_ACCOUNT_EMAIL,
-          token,
-          type: "magiclink",
-        });
+      const result = await verifyCustomOTP(otpEmail, token);
+      if (!result.success) {
+        setError(result.error || "Invalid or expired code.");
+        return;
       }
 
-      if (res.error) throw res.error;
+      // Code verified — now sign in as the vault account
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: VAULT_ACCOUNT_EMAIL,
+        password: result.vaultPassword!,
+      });
+      if (signInError) throw signInError;
       router.replace("/");
     } catch (err: unknown) {
-      setError((err as Error).message || "Invalid or expired code.");
+      setError((err as Error).message || "Failed to authenticate.");
     } finally { setLoading(false); }
   };
 
@@ -135,24 +131,7 @@ export default function LoginPage() {
   const passwordActive = mode === "password";
   const otpActive = mode === "otp-send" || mode === "otp-verify";
 
-  /* Read-only display of the locked vault account */
-  const LockedAccount = () => (
-    <label className="flex flex-col gap-2">
-      <span className="field-label ml-0.5">Vault account</span>
-      <div className="relative">
-        <Lock size={13} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--text-faint)" }} />
-        <input
-          type="email"
-          readOnly
-          tabIndex={-1}
-          autoComplete="username"
-          value={VAULT_ACCOUNT_EMAIL}
-          className="glass-input mono w-full pl-9 pr-3.5 py-2.5 text-[12.5px] cursor-default"
-          style={{ color: "var(--text-dim)" }}
-        />
-      </div>
-    </label>
-  );
+
 
   return (
     <div className="flex-1 flex items-center justify-center p-5 min-h-screen">
@@ -268,7 +247,8 @@ export default function LoginPage() {
                   onSubmit={handlePasswordLogin}
                   className="flex flex-col gap-4"
                 >
-                  <LockedAccount />
+                  {/* Hidden input for browser autocomplete */}
+                  <input type="email" hidden autoComplete="username" value={VAULT_ACCOUNT_EMAIL} readOnly />
 
                   <label className="flex flex-col gap-2">
                     <span className="field-label ml-0.5">Master password</span>
@@ -319,11 +299,27 @@ export default function LoginPage() {
                   className="flex flex-col gap-4"
                 >
                   <p className="text-[12.5px] leading-relaxed" style={{ color: "var(--text-dim)" }}>
-                    A six-digit code will be sent to the vault account&apos;s inbox. This keeps
-                    every sign-in inside the same vault.
+                    Pick your email to receive a six-digit code. You&apos;ll still enter the same vault.
                   </p>
 
-                  <LockedAccount />
+                  {/* Email selector */}
+                  <label className="flex flex-col gap-2">
+                    <span className="field-label ml-0.5">Send code to</span>
+                    <div className="relative">
+                      <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--text-faint)" }} />
+                      <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--text-faint)" }} />
+                      <select
+                        value={otpEmail}
+                        onChange={(e) => setOtpEmail(e.target.value)}
+                        className="glass-input mono w-full pl-9 pr-8 py-2.5 text-[12.5px] appearance-none cursor-pointer"
+                        style={{ color: "var(--text)" }}
+                      >
+                        {OTP_RECIPIENT_EMAILS.map((em) => (
+                          <option key={em} value={em}>{em}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </label>
 
                   <button type="submit" disabled={loading} className="btn-primary w-full py-2.5 text-[13.5px] mt-1">
                     {loading && <Spinner />}
@@ -351,7 +347,7 @@ export default function LoginPage() {
                   className="flex flex-col gap-4"
                 >
                   <p className="text-[12.5px] leading-relaxed" style={{ color: "var(--text-dim)" }}>
-                    Code sent to <span className="mono" style={{ color: "var(--text)" }}>{VAULT_ACCOUNT_EMAIL}</span>
+                    Code sent to <span className="mono" style={{ color: "var(--text)" }}>{otpEmail}</span>
                   </p>
 
                   <label className="flex flex-col gap-2">
@@ -430,7 +426,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* ── Footer ── */}
+        {/* Footer */}
         <p className="mono text-center text-[10px] uppercase tracking-[0.13em] mt-6" style={{ color: "var(--text-faint)" }}>
           AES encrypted · single shared vault
         </p>

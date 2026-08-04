@@ -40,3 +40,13 @@ export function isAllowedEmail(email?: string | null): boolean {
   if (!email) return false;
   return (ALLOWED_EMAILS as readonly string[]).includes(email.trim().toLowerCase());
 }
+
+/**
+ * ── OTP recipient emails ─────────────────────────────────────────────
+ * Personal email addresses that can receive a one-time login code.
+ * The vault account itself is excluded — the OTP is meant to be received
+ * on a *personal* inbox, then used to sign into the shared vault.
+ */
+export const OTP_RECIPIENT_EMAILS = ALLOWED_EMAILS.filter(
+  (e) => e !== VAULT_ACCOUNT_EMAIL
+);

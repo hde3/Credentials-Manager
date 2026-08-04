@@ -186,6 +186,13 @@ body::before {
   box-shadow: 0 0 0 3px var(--accent-ring);
 }
 
+/* Select dropdown options — match dark theme */
+select.glass-input option {
+  background: var(--bg);
+  color: var(--text);
+  padding: 8px 12px;
+}
+
 /* Uppercase micro-label */
 .field-label {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
