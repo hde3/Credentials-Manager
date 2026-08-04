@@ -57,7 +57,15 @@ export default function AIChatWidget() {
         return;
       }
 
-      const raw = await processGeminiCommand(userMsg, JSON.stringify(ctx, null, 2), accessToken);
+      const result = await processGeminiCommand(userMsg, JSON.stringify(ctx, null, 2), accessToken);
+
+      if (result.error) {
+        pushMsg(result.error, "assistant");
+        setLoading(false);
+        return;
+      }
+
+      const raw = result.data || "[]";
 
       /* Parse JSON — extract JSON array or object even if conversational text surrounds it */
       let cleaned = raw.trim();

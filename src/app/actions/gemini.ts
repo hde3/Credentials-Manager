@@ -33,12 +33,13 @@ export async function processGeminiCommand(
   vaultContextStr: string,
   accessToken?: string
 ) {
-  await requireAuthorisedUser(accessToken);
+  try {
+    await requireAuthorisedUser(accessToken);
 
-  const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-  if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not configured.");
+    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not configured.");
 
-  const systemInstruction = `You are a strict credential manager assistant. You can ONLY perform these actions. You MUST respond with a JSON array only — absolutely no extra text, no markdown fences, no explanation.
+    const systemInstruction = `You are a strict credential manager assistant. You can ONLY perform these actions. You MUST respond with a JSON array only — absolutely no extra text, no markdown fences, no explanation.
 
 ACTIONS:
 1. ADD_CREDENTIAL    – add a NEW credential (only if it does NOT already exist)
@@ -66,7 +67,6 @@ RULES:
 Current vault snapshot (passwords hidden):
 ${vaultContextStr}`;
 
-  try {
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
@@ -93,10 +93,11 @@ ${vaultContextStr}`;
     const text: string = data.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
 
     // Belt-and-braces: strip markdown fences even though we asked for raw JSON.
-    return text.replace(/```json/gi, "").replace(/```/g, "").trim() || "[]";
+    const cleanText = text.replace(/```json/gi, "").replace(/```/g, "").trim() || "[]";
+    return { data: cleanText };
   } catch (err: unknown) {
     const e = err as Error;
     console.error("Gemini Error:", e);
-    throw new Error("Failed to process command: " + e.message);
+    return { error: e.message };
   }
 }
