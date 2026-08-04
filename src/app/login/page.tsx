@@ -59,7 +59,10 @@ export default function LoginPage() {
       setLoading(false); return;
     }
     try {
-      const { error } = await supabase.auth.signInWithOtp({ email });
+      const { error } = await supabase.auth.signInWithOtp({ 
+        email,
+        options: { shouldCreateUser: false },
+      });
       if (error) throw error;
       setMode("otp-code");
       setMessage("OTP sent to your email.");
@@ -71,7 +74,7 @@ export default function LoginPage() {
   const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault(); setLoading(true); reset();
     try {
-      const { error } = await supabase.auth.verifyOtp({ email, token: otpCode, type: "email" });
+      const { error } = await supabase.auth.verifyOtp({ email, token: otpCode, type: "magiclink" });
       if (error) throw error;
       router.push("/");
     } catch (err: unknown) {
