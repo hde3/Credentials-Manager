@@ -9,15 +9,34 @@ import CredentialTable from "./CredentialTable";
 import { Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import AIChatWidget from "./AIChatWidget";
+import { supabase } from "@/lib/supabase";
+import { isVaultAccount } from "@/lib/allowedEmails";
 
 export default function DashboardLayout() {
   const { user, authLoading, isLoaded, currentCategory, folders, vaultData } = useVault();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [ejecting, setEjecting] = useState(false);
 
+  /**
+   * Every vault row is scoped to a Supabase `user_id`, so a session belonging
+   * to any account other than the shared vault account would show a different
+   * (empty) vault. Old sessions like that can still be sitting in localStorage,
+   * so eject them here instead of silently rendering the wrong data.
+   */
   useEffect(() => {
-    if (!authLoading && !user) router.push("/login");
+    if (authLoading) return;
+
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+
+    if (!isVaultAccount(user.email)) {
+      setEjecting(true);
+      supabase.auth.signOut().finally(() => router.replace("/login"));
+    }
   }, [user, authLoading, router]);
 
   // Lock body scroll while the mobile drawer is open.
@@ -31,7 +50,7 @@ export default function DashboardLayout() {
     [vaultData]
   );
 
-  if (authLoading || !isLoaded) {
+  if (authLoading || !isLoaded || ejecting) {
     return (
       <div className="flex-1 flex items-center justify-center min-h-screen p-6">
         <div className="flex flex-col items-center gap-4">
@@ -40,7 +59,7 @@ export default function DashboardLayout() {
             style={{ border: "1.5px solid var(--line)", borderTopColor: "var(--text)" }}
           />
           <p className="mono text-[10.5px] uppercase tracking-[0.14em]" style={{ color: "var(--text-faint)" }}>
-            Decrypting vault
+            {ejecting ? "Switching account" : "Decrypting vault"}
           </p>
         </div>
       </div>
@@ -48,6 +67,9 @@ export default function DashboardLayout() {
   }
 
   if (!user) return null;
+
+  // Wrong account — the effect above is already signing it out.
+  if (!isVaultAccount(user.email)) return null;
 
   return (
     <div className="flex-1 flex w-full h-screen overflow-hidden p-3 md:p-4 gap-3 md:gap-4">

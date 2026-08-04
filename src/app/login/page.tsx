@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mail, KeyRound, ArrowLeft, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Mail, KeyRound, ArrowLeft, AlertCircle, CheckCircle2, Lock } from "lucide-react";
 import { sendPasswordEmail } from "@/app/actions/email";
-import { isAllowedEmail } from "@/lib/allowedEmails";
+import { isAllowedEmail, VAULT_ACCOUNT_EMAIL } from "@/lib/allowedEmails";
 
 const Spinner = () => (
   <svg className="animate-spin h-3.5 w-3.5 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -22,80 +22,104 @@ const slide = {
   exit:   { x: -24, opacity: 0 },
 };
 
+type Mode = "password" | "otp-send" | "otp-verify" | "recover";
+
 export default function LoginPage() {
-  const [mode, setMode]         = useState<"standard" | "otp-email" | "otp-code">("standard");
-  const [email, setEmail]       = useState("");
-  const [password, setPassword] = useState("");
-  const [otpCode, setOtpCode]   = useState("");
-  const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState("");
-  const [message, setMessage]   = useState("");
+  const [mode, setMode]           = useState<Mode>("password");
+  const [password, setPassword]   = useState("");
+  const [otpCode, setOtpCode]     = useState("");
+  const [recoverTo, setRecoverTo] = useState("");
+  const [loading, setLoading]     = useState(false);
+  const [error, setError]         = useState("");
+  const [message, setMessage]     = useState("");
   const router = useRouter();
 
   const reset = () => { setError(""); setMessage(""); };
 
-  const handleStandardLogin = async (e: React.FormEvent) => {
+  const go = (next: Mode) => { reset(); setMode(next); };
+
+  /* ── Password login — always the one vault account ── */
+  const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault(); setLoading(true); reset();
-
-    // UX-level check only — real enforcement is Supabase auth + RLS.
-    if (!isAllowedEmail(email)) {
-      setError("Access Denied: this email is not authorized.");
-      setLoading(false); return;
-    }
-
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: VAULT_ACCOUNT_EMAIL,
+        password,
+      });
       if (signInError) throw signInError;
-      router.push("/");
+      router.replace("/");
     } catch (err: unknown) {
       setError((err as Error).message || "Invalid credentials.");
     } finally { setLoading(false); }
   };
 
+  /* ── Send OTP — always to the vault account's inbox ── */
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault(); setLoading(true); reset();
-    if (!isAllowedEmail(email)) {
-      setError("Access Denied: this email is not authorized.");
-      setLoading(false); return;
-    }
     try {
-      const { error } = await supabase.auth.signInWithOtp({ 
-        email,
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email: VAULT_ACCOUNT_EMAIL,
+        // Never silently create a second account.
         options: { shouldCreateUser: false },
       });
-      if (error) throw error;
-      setMode("otp-code");
-      setMessage("OTP sent to your email.");
+      if (otpError) throw otpError;
+      setOtpCode("");
+      setMode("otp-verify");
+      setMessage("Code sent. Check the vault inbox.");
     } catch (err: unknown) {
-      setError((err as Error).message || "Failed to send OTP.");
+      setError((err as Error).message || "Failed to send code.");
     } finally { setLoading(false); }
   };
 
+  /* ── Verify OTP ──
+     signInWithOtp sends either the "OTP" or the "Magic Link" template
+     depending on the Supabase project settings, so try both token types. */
   const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault(); setLoading(true); reset();
+    const token = otpCode.trim();
     try {
-      const { error } = await supabase.auth.verifyOtp({ email, token: otpCode, type: "magiclink" });
-      if (error) throw error;
-      router.push("/");
+      let res = await supabase.auth.verifyOtp({
+        email: VAULT_ACCOUNT_EMAIL,
+        token,
+        type: "email",
+      });
+
+      if (res.error) {
+        res = await supabase.auth.verifyOtp({
+          email: VAULT_ACCOUNT_EMAIL,
+          token,
+          type: "magiclink",
+        });
+      }
+
+      if (res.error) throw res.error;
+      router.replace("/");
     } catch (err: unknown) {
-      setError((err as Error).message || "Invalid OTP code.");
+      setError((err as Error).message || "Invalid or expired code.");
     } finally { setLoading(false); }
   };
 
-  const handleForgotPassword = async () => {
-    if (!email) {
-      setError("Please enter your email in the email field first.");
+  /* ── Recovery — mails the master password to an allow-listed inbox ── */
+  const handleRecover = async (e: React.FormEvent) => {
+    e.preventDefault();
+    reset();
+
+    const target = recoverTo.trim().toLowerCase();
+    if (!target) {
+      setError("Enter your email address first.");
       return;
     }
-    if (!isAllowedEmail(email)) {
-      setError("Access Denied: this email is not authorized.");
+    if (!isAllowedEmail(target)) {
+      setError("Access denied: this email is not authorized.");
       return;
     }
-    setLoading(true); reset(); setMessage("Sending…");
+
+    setLoading(true);
+    setMessage("Sending…");
     try {
-      const result = await sendPasswordEmail(email);
+      const result = await sendPasswordEmail(target);
       if (result.success) {
-        setMessage("Check your email!");
+        setMessage("Sent. Check your inbox for the master password.");
       } else {
         setMessage("");
         setError(result.error || "Failed to send email.");
@@ -107,6 +131,28 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
+
+  const passwordActive = mode === "password";
+  const otpActive = mode === "otp-send" || mode === "otp-verify";
+
+  /* Read-only display of the locked vault account */
+  const LockedAccount = () => (
+    <label className="flex flex-col gap-2">
+      <span className="field-label ml-0.5">Vault account</span>
+      <div className="relative">
+        <Lock size={13} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--text-faint)" }} />
+        <input
+          type="email"
+          readOnly
+          tabIndex={-1}
+          autoComplete="username"
+          value={VAULT_ACCOUNT_EMAIL}
+          className="glass-input mono w-full pl-9 pr-3.5 py-2.5 text-[12.5px] cursor-default"
+          style={{ color: "var(--text-dim)" }}
+        />
+      </div>
+    </label>
+  );
 
   return (
     <div className="flex-1 flex items-center justify-center p-5 min-h-screen">
@@ -149,30 +195,27 @@ export default function LoginPage() {
             style={{ background: "var(--sunken)", border: "1px solid var(--line)" }}
           >
             {([
-              { key: "standard",  label: "Password" },
-              { key: "otp-email", label: "Email code" },
-            ] as const).map((tab) => {
-              const active = tab.key === "standard" ? mode === "standard" : mode !== "standard";
-              return (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => { reset(); setMode(tab.key); }}
-                  className="relative flex-1 py-1.5 text-[12.5px] font-medium rounded-[9px] transition-colors"
-                  style={{ color: active ? "var(--text)" : "var(--text-faint)" }}
-                >
-                  {active && (
-                    <motion.span
-                      layoutId="login-tab"
-                      transition={{ type: "spring", stiffness: 460, damping: 36 }}
-                      className="absolute inset-0 rounded-[9px]"
-                      style={{ background: "var(--surface-solid)", border: "1px solid var(--line)", boxShadow: "var(--shadow-sm)" }}
-                    />
-                  )}
-                  <span className="relative z-10">{tab.label}</span>
-                </button>
-              );
-            })}
+              { key: "password" as Mode, label: "Password",   active: passwordActive },
+              { key: "otp-send" as Mode, label: "Email code", active: otpActive },
+            ]).map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => go(tab.key)}
+                className="relative flex-1 py-1.5 text-[12.5px] font-medium rounded-[9px] transition-colors"
+                style={{ color: tab.active ? "var(--text)" : "var(--text-faint)" }}
+              >
+                {tab.active && (
+                  <motion.span
+                    layoutId="login-tab"
+                    transition={{ type: "spring", stiffness: 460, damping: 36 }}
+                    className="absolute inset-0 rounded-[9px]"
+                    style={{ background: "var(--surface-solid)", border: "1px solid var(--line)", boxShadow: "var(--shadow-sm)" }}
+                  />
+                )}
+                <span className="relative z-10">{tab.label}</span>
+              </button>
+            ))}
           </div>
 
           {/* Alerts */}
@@ -217,33 +260,22 @@ export default function LoginPage() {
           <div className="min-h-[236px]">
             <AnimatePresence mode="wait">
               {/* ── Password login ── */}
-              {mode === "standard" && (
+              {mode === "password" && (
                 <motion.form
-                  key="std"
+                  key="pw"
                   variants={slide} initial="enter" animate="center" exit="exit"
                   transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-                  onSubmit={handleStandardLogin}
+                  onSubmit={handlePasswordLogin}
                   className="flex flex-col gap-4"
                 >
-                  <label className="flex flex-col gap-2">
-                    <span className="field-label ml-0.5">Email</span>
-                    <div className="relative">
-                      <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--text-faint)" }} />
-                      <input
-                        type="email" required autoComplete="email"
-                        value={email} onChange={(e) => setEmail(e.target.value)}
-                        placeholder="you@example.com"
-                        className="glass-input w-full pl-9 pr-3.5 py-2.5 text-[13.5px]"
-                      />
-                    </div>
-                  </label>
+                  <LockedAccount />
 
                   <label className="flex flex-col gap-2">
                     <span className="field-label ml-0.5">Master password</span>
                     <div className="relative">
                       <KeyRound size={14} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--text-faint)" }} />
                       <input
-                        type="password" required autoComplete="current-password"
+                        type="password" required autoFocus autoComplete="current-password"
                         value={password} onChange={(e) => setPassword(e.target.value)}
                         placeholder="••••••••••"
                         className="glass-input w-full pl-9 pr-3.5 py-2.5 text-[13.5px]"
@@ -259,7 +291,7 @@ export default function LoginPage() {
                   <div className="flex items-center justify-between pt-0.5">
                     <button
                       type="button"
-                      onClick={() => { reset(); setMode("otp-email"); }}
+                      onClick={() => go("otp-send")}
                       className="text-[12.5px] font-medium transition-opacity hover:opacity-70"
                       style={{ color: "var(--accent)" }}
                     >
@@ -267,9 +299,8 @@ export default function LoginPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={handleForgotPassword}
-                      disabled={loading}
-                      className="text-[12.5px] transition-opacity hover:opacity-70 disabled:opacity-40"
+                      onClick={() => go("recover")}
+                      className="text-[12.5px] transition-opacity hover:opacity-70"
                       style={{ color: "var(--text-faint)" }}
                     >
                       Forgot password?
@@ -278,31 +309,21 @@ export default function LoginPage() {
                 </motion.form>
               )}
 
-              {/* ── OTP: email ── */}
-              {mode === "otp-email" && (
+              {/* ── OTP: send ── */}
+              {mode === "otp-send" && (
                 <motion.form
-                  key="otp-e"
+                  key="otp-s"
                   variants={slide} initial="enter" animate="center" exit="exit"
                   transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
                   onSubmit={handleSendOTP}
                   className="flex flex-col gap-4"
                 >
                   <p className="text-[12.5px] leading-relaxed" style={{ color: "var(--text-dim)" }}>
-                    We&apos;ll email you a six-digit code. No password needed.
+                    A six-digit code will be sent to the vault account&apos;s inbox. This keeps
+                    every sign-in inside the same vault.
                   </p>
 
-                  <label className="flex flex-col gap-2">
-                    <span className="field-label ml-0.5">Email</span>
-                    <div className="relative">
-                      <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--text-faint)" }} />
-                      <input
-                        type="email" required autoComplete="email"
-                        value={email} onChange={(e) => setEmail(e.target.value)}
-                        placeholder="you@example.com"
-                        className="glass-input w-full pl-9 pr-3.5 py-2.5 text-[13.5px]"
-                      />
-                    </div>
-                  </label>
+                  <LockedAccount />
 
                   <button type="submit" disabled={loading} className="btn-primary w-full py-2.5 text-[13.5px] mt-1">
                     {loading && <Spinner />}
@@ -311,7 +332,7 @@ export default function LoginPage() {
 
                   <button
                     type="button"
-                    onClick={() => { reset(); setMode("standard"); }}
+                    onClick={() => go("password")}
                     className="flex items-center gap-1.5 text-[12.5px] transition-opacity hover:opacity-70"
                     style={{ color: "var(--text-faint)" }}
                   >
@@ -320,24 +341,24 @@ export default function LoginPage() {
                 </motion.form>
               )}
 
-              {/* ── OTP: code ── */}
-              {mode === "otp-code" && (
+              {/* ── OTP: verify ── */}
+              {mode === "otp-verify" && (
                 <motion.form
-                  key="otp-c"
+                  key="otp-v"
                   variants={slide} initial="enter" animate="center" exit="exit"
                   transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
                   onSubmit={handleVerifyOTP}
                   className="flex flex-col gap-4"
                 >
                   <p className="text-[12.5px] leading-relaxed" style={{ color: "var(--text-dim)" }}>
-                    Code sent to <span className="mono" style={{ color: "var(--text)" }}>{email}</span>
+                    Code sent to <span className="mono" style={{ color: "var(--text)" }}>{VAULT_ACCOUNT_EMAIL}</span>
                   </p>
 
                   <label className="flex flex-col gap-2">
                     <span className="field-label ml-0.5">Verification code</span>
                     <input
-                      type="text" required maxLength={6} inputMode="numeric" autoComplete="one-time-code"
-                      value={otpCode} onChange={(e) => setOtpCode(e.target.value)}
+                      type="text" required maxLength={6} inputMode="numeric" autoFocus autoComplete="one-time-code"
+                      value={otpCode} onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
                       placeholder="000000"
                       className="glass-input mono w-full px-4 py-3 text-center text-lg tracking-[0.5em]"
                     />
@@ -354,11 +375,54 @@ export default function LoginPage() {
 
                   <button
                     type="button"
-                    onClick={() => { reset(); setMode("otp-email"); }}
+                    onClick={() => go("otp-send")}
                     className="flex items-center gap-1.5 text-[12.5px] transition-opacity hover:opacity-70"
                     style={{ color: "var(--text-faint)" }}
                   >
-                    <ArrowLeft size={13} /> Change email
+                    <ArrowLeft size={13} /> Resend code
+                  </button>
+                </motion.form>
+              )}
+
+              {/* ── Recovery ── */}
+              {mode === "recover" && (
+                <motion.form
+                  key="rec"
+                  variants={slide} initial="enter" animate="center" exit="exit"
+                  transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                  onSubmit={handleRecover}
+                  className="flex flex-col gap-4"
+                >
+                  <p className="text-[12.5px] leading-relaxed" style={{ color: "var(--text-dim)" }}>
+                    We&apos;ll mail the master password to your own inbox, provided your address
+                    is on the approved list.
+                  </p>
+
+                  <label className="flex flex-col gap-2">
+                    <span className="field-label ml-0.5">Your email</span>
+                    <div className="relative">
+                      <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--text-faint)" }} />
+                      <input
+                        type="email" required autoFocus autoComplete="email"
+                        value={recoverTo} onChange={(e) => setRecoverTo(e.target.value)}
+                        placeholder="you@example.com"
+                        className="glass-input w-full pl-9 pr-3.5 py-2.5 text-[13.5px]"
+                      />
+                    </div>
+                  </label>
+
+                  <button type="submit" disabled={loading} className="btn-primary w-full py-2.5 text-[13.5px] mt-1">
+                    {loading && <Spinner />}
+                    {loading ? "Sending" : "Email master password"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => go("password")}
+                    className="flex items-center gap-1.5 text-[12.5px] transition-opacity hover:opacity-70"
+                    style={{ color: "var(--text-faint)" }}
+                  >
+                    <ArrowLeft size={13} /> Back to password login
                   </button>
                 </motion.form>
               )}
@@ -368,7 +432,7 @@ export default function LoginPage() {
 
         {/* ── Footer ── */}
         <p className="mono text-center text-[10px] uppercase tracking-[0.13em] mt-6" style={{ color: "var(--text-faint)" }}>
-          AES encrypted · approved accounts only
+          AES encrypted · single shared vault
         </p>
       </motion.div>
     </div>
